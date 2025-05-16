@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}API Dokumentation - MovieWeb App{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">API Dokumentation</h1>
+    
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Übersicht / Overview</h2>
+            <p>
+                Die MovieWeb API ermöglicht den Zugriff auf Benutzer- und Filmdaten im JSON-Format.
+                The MovieWeb API provides access to user and movie data in JSON format.
+            </p>
+            <p>
+                Basis-URL / Base URL: <code>{{ request.host_url }}api/</code>
+            </p>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Endpunkte / Endpoints</h2>
+
+            <h3 class="h5 mt-4">Benutzer / Users</h3>
+            <div class="table-responsive">
+                <table class="table table-dark">
+                    <thead>
+                        <tr>
+                            <th>Methode / Method</th>
+                            <th>Endpunkt / Endpoint</th>
+                            <th>Beschreibung / Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/users</code></td>
+                            <td>
+                                Gibt eine Liste aller Benutzer zurück.
+                                Returns a list of all users.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/users/{user_id}</code></td>
+                            <td>
+                                Gibt Details eines bestimmten Benutzers zurück.
+                                Returns details of a specific user.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/users/{user_id}/movies</code></td>
+                            <td>
+                                Gibt alle Filme eines Benutzers zurück.
+                                Returns all movies of a user.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="h5 mt-4">Filme / Movies</h3>
+            <div class="table-responsive">
+                <table class="table table-dark">
+                    <thead>
+                        <tr>
+                            <th>Methode / Method</th>
+                            <th>Endpunkt / Endpoint</th>
+                            <th>Beschreibung / Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/movies</code></td>
+                            <td>
+                                Gibt eine Liste aller Filme zurück.
+                                Returns a list of all movies.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/movies/{movie_id}</code></td>
+                            <td>
+                                Gibt Details eines bestimmten Films zurück.
+                                Returns details of a specific movie.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/movies/{movie_id}/comments</code></td>
+                            <td>
+                                Gibt alle Kommentare zu einem Film zurück.
+                                Returns all comments for a movie.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Beispielantworten / Example Responses</h2>
+
+            <h3 class="h5 mt-4">Benutzerliste / User List</h3>
+            <pre class="bg-dark text-light p-3"><code>{
+    "users": [
+        {
+            "id": 1,
+            "name": "max123",
+            "movie_count": 5
+        },
+        {
+            "id": 2,
+            "name": "anna456",
+            "movie_count": 3
+        }
+    ]
+}</code></pre>
+
+            <h3 class="h5 mt-4">Benutzerdetails / User Details</h3>
+            <pre class="bg-dark text-light p-3"><code>{
+    "user": {
+        "id": 1,
+        "name": "max123",
+        "movies": [
+            {
+                "id": 1,
+                "title": "The Matrix",
+                "director": "Lana Wachowski",
+                "year": 1999,
+                "rating": 4.5,
+                "poster_url": "https://..."
+            }
+        ]
+    }
+}</code></pre>
+
+            <h3 class="h5 mt-4">Filmdetails / Movie Details</h3>
+            <pre class="bg-dark text-light p-3"><code>{
+    "movie": {
+        "id": 1,
+        "title": "The Matrix",
+        "director": "Lana Wachowski",
+        "year": 1999,
+        "rating": 4.5,
+        "poster_url": "https://...",
+        "comments": [
+            {
+                "id": 1,
+                "text": "Ein Meisterwerk!",
+                "user": "max123",
+                "created_at": "2024-03-20T15:30:00Z"
+            }
+        ]
+    }
+}</code></pre>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Fehlercodes / Error Codes</h2>
+            <div class="table-responsive">
+                <table class="table table-dark">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Beschreibung / Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>400</td>
+                            <td>
+                                Ungültige Anfrage / Bad Request
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>404</td>
+                            <td>
+                                Ressource nicht gefunden / Resource not found
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>500</td>
+                            <td>
+                                Server-Fehler / Server error
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light">
+        <div class="card-body">
+            <h2 class="card-title h4">Beispielanfragen / Example Requests</h2>
+            <p>
+                Hier sind einige Beispiele für API-Anfragen mit curl:
+                Here are some examples of API requests using curl:
+            </p>
+
+            <h3 class="h5 mt-4">Alle Benutzer abrufen / Get all users</h3>
+            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users"</code></pre>
+
+            <h3 class="h5 mt-4">Benutzerdetails abrufen / Get user details</h3>
+            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users/1"</code></pre>
+
+            <h3 class="h5 mt-4">Filme eines Benutzers abrufen / Get user's movies</h3>
+            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users/1/movies"</code></pre>
+        </div>
+    </div>
+</div>
+{% endblock %} 

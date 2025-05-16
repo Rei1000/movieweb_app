@@ -1,0 +1,102 @@
+/* 
+ style.css
+ Hauptstylesheet für MovieWeb App.
+ Main stylesheet for the MovieWeb App.
+*/
+
+/* Grundlayout */
+/* Erste body-Regel entfernt */
+
+/* .container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 15px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 8px;
+} */
+
+/* Navigation */
+/* Erste nav-Regel entfernt */
+
+/* Flash-Nachrichten */
+.flashes {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+.flashes li {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+}
+
+/* 5-Sterne Bewertung */
+.star-rating {
+    font-size: 1.2em;
+    color: #ffc107; /* Gold für gefüllte Sterne */
+    display: inline-block;
+}
+.star-rating .star {
+    margin-right: 2px;
+}
+
+
+/* Button-Gruppe */
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+
+/* Dark Theme Colors */
+body {
+    background-color: #000 !important;
+    color: #f8f9fa;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+
+/* Navigation */
+nav {
+    background-color: #1f1f1f;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+nav a {
+    color: #f8f9fa;
+}
+nav a:hover {
+    color: #ffc107;
+}
+
+
+/* Footer */
+footer {
+    background-color: #1f1f1f;
+    color: #ccc;
+    padding: 10px 0;
+    text-align: center;
+    font-size: 0.9em;
+}
+
+.movie-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 20px;
+}
+
+.movie-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}

@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}MovieWeb App - Find Your Next Movie{% endblock %}
+
+{% block content %}
+{% if not g_is_user_logged_in %}
+<div class="welcome-section">
+    <h1>Lost in Movie Limbo?</h1>
+    <p class="lead">
+        Hey there, cinephile! Tired of endless scrolling, wondering what masterpiece to watch next? 
+        You've come to the right place!
+    </p>
+    <p>
+        Dive into our <strong>Community Top 10</strong> for some crowd-sourced brilliance, or let our
+        <strong>AI-powered search</strong> unearth hidden gems tailored just for you. 
+    </p>
+    <p>
+        Even better? <strong>Join our awesome community!</strong> Just a name is all it takes – no pesky confirmation emails, no fuss. 
+        Simply sign up to curate your personal movie lists, discover flicks, dive into detailed film info, and check out 
+        community ratings and comments.
+    </p>
+    <p>
+        <strong>Be part of the action. Hollywood (and your couch) needs you!</strong>
+    </p>
+    <div class="cta-buttons">
+        <p style="font-size: 1.1em; color: #ffc107;">Ready to jump in? Register below!</p>
+    </div>
+</div>
+
+<div class="login-prompt-home" id="login-section-home">
+    <p>Join MovieWeb or log in to manage your movie lists and participate!</p>
+    <form id="loginFormHome" onsubmit="event.preventDefault(); loginOrRegisterHome();">
+        <input type="text" id="usernameInputHome" name="username" placeholder="Enter your name" required>
+        <input type="hidden" id="csrfTokenHome" value="{{ csrf_token() }}">
+        <button type="submit" class="custom-button">Login / Register</button>
+    </form>
+    <div id="loginMessageHome" style="margin-top: 10px; color: #ffc107;"></div>
+</div>
+{% endif %}
+
+<h2 class="top-movies-header">Community Top 10</h2>
+{% if top_movies %}
+<div class="movie-grid">
+    {% for movie_relation in top_movies %}
+        {% set movie = movie_relation.Movie if movie_relation.Movie else movie_relation %} {# Anpassung für die direkte Query #}
+        <a href="{{ url_for('movie_page', movie_id=movie.id) }}" class="movie-card">
+            {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
+                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}">
+            {% else %}
+                <div class="placeholder-poster">
+                    {{ movie.title }}
+                </div>
+            {% endif %}
+            <div class="movie-card-content">
+                <h5 class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</h5>
+                <p class="movie-card-info">{{ movie.year }}</p>
+                {% if movie.community_rating is not none and movie.community_rating_count > 0 %}
+                <div class="star-rating" title="Community Rating: {{ movie.community_rating|round(1) }}/5 ({{ movie.community_rating_count }} votes)">
+                    <strong>Community Rating: </strong>
+                    {% set full_comm = movie.community_rating|int %}
+                    {% set half_comm = 1 if (movie.community_rating - full_comm) >= 0.5 else 0 %}
+                    {% set empty_comm = 5 - full_comm - half_comm %}
+                    {{ '★' * full_comm }}{% if half_comm %}½{% endif %}{{ '☆' * empty_comm }} ({{ movie.community_rating_count }})
+                </div>
+                {% else %}
+                 <div class="star-rating" title="No community ratings yet">
+                    <strong>Community Rating: </strong> ☆☆☆☆☆ (0)
+                </div>
+                {% endif %}
+            </div>
+        </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="custom-alert">
+    <p>No top movies to display at the moment. Why not add some and get the ball rolling?</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block styles %}
+<style>
+    .welcome-section {
+        text-align: center;
+        padding: 40px 20px;
+        background-color: #1a1a1a; /* Etwas dunkler als der Hauptseitenhintergrund für Akzent */
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border: 1px solid #333;
+    }
+    .welcome-section h1 {
+        font-size: 2.8em;
+        color: #ffc107; /* Gold für Hauptüberschrift */
+        margin-bottom: 15px;
+    }
+    .welcome-section .lead {
+        font-size: 1.2em;
+        color: #e0e0e0; /* Helleres Grau für bessere Lesbarkeit */
+        max-width: 800px;
+        margin: 0 auto 20px auto;
+        line-height: 1.6;
+    }
+    .welcome-section p {
+        font-size: 1em;
+        color: #c0c0c0;
+        max-width: 700px;
+        margin: 10px auto;
+        line-height: 1.5;
+    }
+    .welcome-section .cta-buttons {
+        margin-top: 30px;
+    }
+    .welcome-section .cta-buttons .custom-button {
+        margin: 0 10px;
+        padding: 12px 25px;
+        font-size: 1.1em;
+    }
+
+    .top-movies-header {
+        text-align: center;
+        margin-bottom: 25px;
+        font-size: 2em;
+        color: #eee;
+    }
+
+    .movie-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, 320px); /* Feste Breite für Karten */
+        gap: 1.5rem;
+        justify-content: center; /* Zentriert die Karten, wenn sie nicht die volle Breite füllen */
+        padding: 1rem 0; /* Weniger horizontales Padding, da justify-content verwendet wird */
+    }
+
+    .movie-card {
+        display: block;
+        width: 320px;
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        text-decoration: none; /* Entfernt Unterstreichung vom Link */
+        color: inherit; /* Erbt Textfarbe */
+    }
+    .movie-card:hover {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+    .movie-poster {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
+    }
+    .placeholder-poster {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 250px; /* Placeholder Höhe */
+        background: #2c2c2c;
+        color: #ccc;
+        text-align: center;
+        font-size: 1rem;
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
+        border-bottom: 1px solid #333;
+    }
+    .movie-card-content {
+        padding: 0.75rem;
+        margin-top: auto;
+        background-color: #1a1a1a;
+        border-top: 1px solid #282828;
+    }
+    .movie-card-title {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #eee;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .movie-card-info {
+        font-size: 0.85rem;
+        color: #aaa;
+        margin-bottom: 0.5rem;
+    }
+    .star-rating {
+        color: #f5c518; /* IMDb Gelb */
+        margin-bottom: 0.5rem;
+        font-size: 0.9em;
+    }
+    .login-prompt-home {
+        background-color: #222;
+        padding: 20px;
+        border-radius: 5px;
+        text-align: center;
+        border: 1px solid #383838;
+    }
+    .login-prompt-home p { margin-bottom: 15px; color: #ddd;}
+    .login-prompt-home form { display: flex; justify-content: center; gap: 10px; }
+    .login-prompt-home input[type="text"] { padding: 8px; border-radius: 3px; border: 1px solid #444; background-color: #333; color: #fff; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loginOrRegisterHome() {
+    const username = document.getElementById('usernameInputHome').value.trim();
+    const csrfToken = document.getElementById('csrfTokenHome').value;
+    const messageDiv = document.getElementById('loginMessageHome');
+    messageDiv.textContent = '';
+
+    if (!username) {
+        messageDiv.textContent = 'Please enter a name.';
+        messageDiv.style.color = '#dc3545'; // Danger color
+        return;
+    }
+
+    // Try to log in first
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: `username=${encodeURIComponent(username)}&csrf_token=${encodeURIComponent(csrfToken)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageDiv.textContent = 'Login successful! Redirecting...';
+            messageDiv.style.color = '#28a745'; // Success color
+            window.location.href = data.redirect;
+        } else {
+            // If login fails (e.g., user not found), try to register
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `username=${encodeURIComponent(username)}&csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(regData => {
+                if (regData.success) {
+                    messageDiv.textContent = 'Registration successful! Redirecting...';
+                    messageDiv.style.color = '#28a745'; // Success color
+                    window.location.href = regData.redirect;
+                } else {
+                    messageDiv.textContent = regData.message || 'Login/Registration failed.';
+                    messageDiv.style.color = '#dc3545'; // Danger color
+                }
+            })
+            .catch(error => {
+                console.error('Registration Error:', error);
+                messageDiv.textContent = 'An error occurred during registration.';
+                messageDiv.style.color = '#dc3545';
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Login Error:', error);
+        messageDiv.textContent = 'An error occurred during login.';
+        messageDiv.style.color = '#dc3545';
+    });
+}
+// Ensure this script runs after the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginFormHome');
+    if(loginForm){
+        loginForm.addEventListener('submit', function(event){
+            event.preventDefault();
+            loginOrRegisterHome();
+        });
+    }
+});
+</script>
+{% endblock %} 

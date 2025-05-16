@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Über MovieWeb - MovieWeb App{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card bg-dark text-light">
+                <div class="card-body">
+                    <h1 class="card-title mb-4">Über MovieWeb / About MovieWeb</h1>
+                    
+                    <h2 class="h4 mb-3">Projektbeschreibung / Project Description</h2>
+                    <p>
+                        MovieWeb ist eine Webanwendung zur Verwaltung von Filmlisten. 
+                        Benutzer können ihre Lieblingsfilme speichern, bewerten und kommentieren.
+                        MovieWeb is a web application for managing movie lists. 
+                        Users can save, rate, and comment on their favorite movies.
+                    </p>
+
+                    <h2 class="h4 mb-3 mt-4">Funktionen / Features</h2>
+                    <ul>
+                        <li>
+                            Benutzerverwaltung / User Management
+                            <ul>
+                                <li>Registrierung und Login / Registration and login</li>
+                                <li>Persönliche Filmlisten / Personal movie lists</li>
+                            </ul>
+                        </li>
+                        <li>
+                            Filmverwaltung / Movie Management
+                            <ul>
+                                <li>Filme hinzufügen und bearbeiten / Add and edit movies</li>
+                                <li>Bewertungssystem / Rating system</li>
+                                <li>Kommentarfunktion / Comment feature</li>
+                            </ul>
+                        </li>
+                        <li>
+                            API-Integration / API Integration
+                            <ul>
+                                <li>OMDb API für Filminformationen / OMDb API for movie information</li>
+                            </ul>
+                        </li>
+                    </ul>
+
+                    <h2 class="h4 mb-3 mt-4">Technologien / Technologies</h2>
+                    <ul>
+                        <li>Backend / Backend
+                            <ul>
+                                <li>Python / Flask</li>
+                                <li>SQLAlchemy / SQLite</li>
+                                <li>RESTful API</li>
+                            </ul>
+                        </li>
+                        <li>Frontend / Frontend
+                            <ul>
+                                <li>HTML5 / CSS3</li>
+                                <li>JavaScript</li>
+                                <li>Bootstrap 5</li>
+                            </ul>
+                        </li>
+                    </ul>
+
+                    <h2 class="h4 mb-3 mt-4">Entwicklung / Development</h2>
+                    <p>
+                        MovieWeb wurde mit Fokus auf Benutzerfreundlichkeit und Robustheit entwickelt.
+                        Die Anwendung verwendet moderne Webtechnologien und folgt Best Practices
+                        für Sicherheit und Performance.
+                        MovieWeb was developed with a focus on user-friendliness and robustness.
+                        The application uses modern web technologies and follows best practices
+                        for security and performance.
+                    </p>
+
+                    <h2 class="h4 mb-3 mt-4">API-Dokumentation / API Documentation</h2>
+                    <p>
+                        Eine ausführliche API-Dokumentation finden Sie unter:
+                        You can find detailed API documentation at:
+                        <a href="{{ url_for('api_docs') }}" class="text-light">API Docs</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

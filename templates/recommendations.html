@@ -1,0 +1,22 @@
+
+
+<!--
+recommendations.html
+Seite zur Anzeige von KI-Empfehlungen.
+Page for displaying AI recommendations.
+-->
+{% extends 'base.html' %}
+
+{% block title %}Recommendations - MovieWeb App{% endblock %}
+
+{% block content %}
+    <div class="form-header">
+        <h1>Recommendations for User {{ user.name if user else user_id }}</h1>
+    </div>
+    <div class="recommendation-box">
+        <pre>{{ recommendation }}</pre>
+    </div>
+    <a href="{{ url_for('list_user_movies', user_id=user_id) }}" class="movie-button">
+        Zurück zur Filmliste / Back to movies
+    </a>
+{% endblock %}

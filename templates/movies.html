@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Movies for {{ user.name }} - MovieWeb App{% endblock %}
+
+{% block styles %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem; /* Etwas Abstand nach unten */
+    }
+    .page-header h1 {
+        margin-bottom: 0; /* Entfernt den Standard-Margin der h1, um die vertikale Zentrierung zu verbessern */
+    }
+
+    .movie-grid {
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, 320px); /* Geändert auf feste 320px Spaltenbreite */
+        gap: 1.5rem;
+        padding: 1rem; /* Default padding */
+    }
+    @media (min-width: 576px) { .movie-grid { padding: 1.5rem; } }
+    /* Bei 992px und darüber bleibt das Padding bei 1.5rem, um mehr Platz für Karten zu lassen */
+    /* @media (min-width: 992px) { .movie-grid { padding: 2rem; } } */ 
+    @media (min-width: 992px) { .movie-grid { padding: 1.5rem; } } /* Explizit für 992px+ */
+
+    .movie-card { /* Umbenannt von movie-card-link, da es kein Link mehr ist */
+        display: block;
+        width: 320px;  /* Feste Breite für die Karte gesetzt */
+        background-color: #1a1a1a; /* Dunkler Hintergrund statt grün */
+        border: 1px solid #333; /* Dunklerer Rand */
+        border-radius: 8px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden; /* Wichtig, falls Poster abgerundete Ecken bekommen soll oder überläuft */
+        display: flex; /* Hinzugefügt für Flexbox-Layout */
+        flex-direction: column; /* Elemente untereinander anordnen */
+        height: 100%; /* Damit die Karte den Grid-Bereich füllt, falls Zeilen feste Höhe haben */
+    }
+    .movie-card:hover {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+
+    .movie-poster {
+        display: block; /* Stellt sicher, dass es ein Block-Element ist */
+        width: 100%;    /* Volle Breite der .movie-card */
+        height: auto;   /* Höhe passt sich dem Seitenverhältnis an */
+        /* max-height: 300px; */ /* Optional, falls eine maximale Posterhöhe gewünscht ist */
+        object-fit: cover; /* Falls feste Höhe verwendet wird, wie das Bild skaliert werden soll */
+        border-top-left-radius: 7px; /* Abrundung passend zur Karte */
+        border-top-right-radius: 7px; /* Abrundung passend zur Karte */
+    }
+    .placeholder-poster {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 250px; /* Angepasste Mindesthöhe für Placeholder, anpassbar */
+        /* padding: 1rem; */ /* Entfernt, da der Text direkt angezeigt wird */
+        background: #2c2c2c;
+        color: #ccc;
+        text-align: center;
+        font-size: 1rem;
+        border-top-left-radius: 7px; /* Abrundung passend zur Karte */
+        border-top-right-radius: 7px; /* Abrundung passend zur Karte */
+        border-bottom: 1px solid #333; /* Trennung zum (noch nicht existenten) Body */
+    }
+
+    .movie-card-content {
+        padding: 0.75rem;
+        margin-top: auto; /* Schiebt den Inhaltsblock nach unten */
+        background-color: #1a1a1a; /* Sicherstellen, dass es über dem Poster liegt, falls Poster absolute Positionierung hätte */
+        border-top: 1px solid #282828; /* Leichte Trennlinie zum Posterbereich */
+    }
+
+    .movie-card-title {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #eee;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Titel mit ... kürzen wenn zu lang */
+    }
+
+    .movie-card-info {
+        font-size: 0.85rem;
+        color: #aaa;
+        margin-bottom: 0.5rem;
+    }
+
+    .star-rating {
+        color: #f5c518; /* IMDb Gelb */
+        margin-bottom: 0.5rem;
+    }
+
+    .movie-card-actions {
+        display: flex;
+        flex-wrap: wrap; /* Buttons umbrechen lassen, falls nicht genug Platz */
+        gap: 0.5rem; /* Abstand zwischen Buttons */
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #333; /* Trennlinie über den Buttons */
+    }
+
+    .custom-button-small {
+        padding: 6px 10px;
+        font-size: 0.8em;
+    }
+
+    /* Button und Alert Styles können bleiben, falls sie global gebraucht werden oder später wieder kommen */
+    .custom-button {
+        display: inline-block;
+        padding: 8px 15px;
+        margin: 5px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background-color: #333;
+        color: #fff;
+        text-decoration: none;
+        cursor: pointer;
+        text-align: center;
+        font-size: 0.9em;
+    }
+    .custom-button-warning {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+    .custom-button-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+    .custom-button:hover {
+        opacity: 0.8;
+    }
+    .custom-alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background-color: #2a2a2a;
+        border-color: #333;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ user.name }}'s Movie List</h1>
+    <a href="{{ url_for('add_movie', user_id=user.id) }}" class="custom-button">
+        Add Movie
+    </a>
+</div>
+
+{% if user_movie_relations %}
+<div class="movie-grid">
+    {% for relation in user_movie_relations %}
+    {% set movie = relation.movie %}
+    <div class="movie-card">
+        <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit;">
+            {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
+                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}">
+            {% else %}
+                <div class="placeholder-poster">
+                    {{ movie.title }}
+                </div>
+            {% endif %}
+        </a>
+        <div class="movie-card-content">
+            <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit;">
+                <h5 class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</h5>
+                <p class="movie-card-info">{{ movie.year }}</p>
+                {% if movie.director %}
+                    <p class="movie-card-info">{{ movie.director }}</p>
+                {% endif %}
+            </a>
+            
+            {% if relation.user_rating is not none %}
+            <div class="star-rating" title="Your Rating: {{ relation.user_rating }}/5" style="font-size: 0.9em; margin-bottom: 0.25rem;">
+                <strong>My Rating: </strong>
+                {% set ur = relation.user_rating %}
+                {% set ur_full = ur|int %}
+                {% set ur_half = 1 if (ur - ur_full) >= 0.5 else 0 %}
+                {% set ur_empty = 5 - ur_full - ur_half %}
+                {{ '★' * ur_full }}{% if ur_half %}½{% endif %}{{ '☆' * ur_empty }}
+            </div>
+            {% endif %}
+
+            {% if movie.community_rating is not none %}
+            <div class="star-rating" title="Community Rating: {{ movie.community_rating|round(1) }}/5 ({{ movie.community_rating_count }} votes)" style="font-size: 0.8em; color: #aaa;">
+                <strong>Community Avg: </strong>
+                {% set full_comm = movie.community_rating|int %}
+                {% set half_comm = 1 if (movie.community_rating - full_comm) >= 0.5 else 0 %}
+                {% set empty_comm = 5 - full_comm - half_comm %}
+                {{ '★' * full_comm }}{% if half_comm %}½{% endif %}{{ '☆' * empty_comm }} ({{movie.community_rating_count}})
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="custom-alert">
+    No movies found in your list.
+</div>
+{% endif %}
+
+{# Modal HTML entfernt #}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Keine Modal-JS-Logik mehr hier
+</script>
+{% endblock %}

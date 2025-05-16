@@ -1,0 +1,22 @@
+
+
+<!--
+add_user.html
+Seite zum Hinzufügen eines neuen Benutzers.
+Page for adding a new user.
+-->
+{% extends 'base.html' %}
+
+{% block title %}Add User - MovieWeb App{% endblock %}
+
+{% block content %}
+    <div class="form-header">
+      <h1>Add User</h1>
+    </div>
+
+    <form method="post" action="{{ url_for('add_user') }}" class="movie-form">
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" required class="form-input">
+      <button type="submit" class="form-button">Erstellen / Create</button>
+    </form>
+{% endblock %}

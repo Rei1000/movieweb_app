@@ -1,0 +1,17 @@
+
+
+<!--
+500.html
+Fehlerseite: Interner Serverfehler.
+500 error page: Internal Server Error.
+-->
+{% extends 'base.html' %}
+
+{% block title %}500 - Internal Server Error{% endblock %}
+
+{% block content %}
+    <h1>500 - Interner Serverfehler / Internal Server Error</h1>
+    <p>Es ist ein unerwarteter Fehler aufgetreten.</p>
+    <p>An unexpected error has occurred.</p>
+    <a href="{{ url_for('home') }}">Zurück zur Startseite / Back to home</a>
+{% endblock %}

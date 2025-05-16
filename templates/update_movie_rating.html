@@ -1,0 +1,288 @@
+<!--
+update_movie_rating.html
+Seite zum Bearbeiten des eigenen Ratings für einen Film.
+Page for editing a user's own rating for a movie.
+-->
+{% extends 'base.html' %}
+
+{% block title %}Update Your Rating for {{ movie.title }} - MovieWeb App{% endblock %}
+
+{% block styles %}
+<style>
+    .movie-form-container { /* Neuer Container für Zentrierung und Styling */
+        max-width: 700px;
+        margin: 40px auto;
+        padding: 25px;
+        background-color: #1c1c1c;
+        border-radius: 8px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .form-header h1 {
+        font-size: 1.8em;
+        color: #eee;
+        margin-bottom: 5px;
+    }
+    .form-header p {
+        font-size: 0.9em;
+        color: #aaa;
+        margin-bottom: 20px;
+    }
+
+    .movie-details-preview { /* Bereich für Filmdetails */
+        display: flex;
+        gap: 20px;
+        padding: 15px;
+        background-color: #252525;
+        border-radius: 5px;
+        border: 1px solid #383838;
+        margin-bottom: 25px;
+    }
+    .movie-details-preview img {
+        width: 100px; /* Kleinere Postergröße */
+        height: auto;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #444;
+    }
+    .movie-details-preview-info h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.3em;
+        color: #fff;
+    }
+    .movie-details-preview-info p {
+        margin-bottom: 5px;
+        color: #ccc;
+        font-size: 0.9em;
+    }
+
+    .rating-input-group {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #333;
+    }
+    .rating-input-group label {
+        display: block;
+        margin-bottom: 12px;
+        font-weight: bold;
+        color: #ddd;
+    }
+
+    /* CSS für interaktive Sterne (detailliert) */
+    .interactive-stars {
+        display: inline-block;
+        font-size: 2.2em; /* Etwas größere Sterne */
+        color: #ccc; 
+        margin-bottom: 20px;
+    }
+    .interactive-stars .star {
+        cursor: pointer;
+        padding: 0 0.1em;
+        transition: color 0.1s ease-in-out;
+        display: inline-block; /* Wichtig für korrekte Icon-Darstellung */
+    }
+    .interactive-stars .star .fa { /* Ziel das Icon direkt */
+         color: #444; /* Dunklere leere Sterne */
+         transition: color 0.1s ease-in-out, transform 0.1s ease-in-out;
+    }
+    .interactive-stars .star:hover .fa, /* Allgemeiner Hover */
+    .interactive-stars .star.hovered .fa { /* Spezifischer JS-Hover */
+        color: #d4a017; /* Etwas gedämpfteres Gelb für Hover */
+        transform: scale(1.1);
+    }
+    .interactive-stars .star.filled .fa {
+        color: #f5c518; /* IMDb Gelb für gefüllte Sterne */
+    }
+    .interactive-stars .star.half-filled .fa {
+        color: #f5c518; 
+    }
+    
+    .form-actions { /* Container für Buttons */
+        margin-top: 25px;
+        display: flex;
+        gap: 10px;
+    }
+    .form-actions .custom-button,
+    .form-actions .custom-button-secondary {
+        flex-grow: 1; /* Buttons teilen sich den Platz */
+    }
+    .form-input-hidden {
+        display: none !important; /* Sicherstellen, dass das numerische Input versteckt ist */
+    }
+    .current-rating-text {
+        font-size: 0.9em;
+        color: #aaa;
+        margin-top: 5px;
+        display: block; /* Eigene Zeile */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="movie-form-container">
+    <div class="form-header">
+        <h1>Update Your Rating for: {{ movie.title }}</h1>
+        <p>Modifying rating as user: <strong>{{ user.name }}</strong></p>
+    </div>
+
+    <div class="movie-details-preview">
+        {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
+            <img src="{{ movie.poster_url }}" alt="Poster for {{ movie.title }}">
+        {% else %}
+            <div style="width: 100px; height: 150px; background-color: #333; color: #ccc; display: flex; align-items: center; justify-content: center; text-align: center; border-radius: 4px; font-size: 0.8em;">
+                {{ movie.title }}<br>(No Poster)
+            </div>
+        {% endif %}
+        <div class="movie-details-preview-info">
+            <h3>{{ movie.title }}</h3>
+            <p><strong>Director:</strong> {{ movie.director or 'N/A' }}</p>
+            <p><strong>Year:</strong> {{ movie.year or 'N/A' }}</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('update_movie_rating', user_id=user.id, movie_id=movie.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="rating-input-group">
+            <label for="user_rating_display">Your Rating (click stars/halves to rate):</label>
+            <div id="interactive-star-rating-widget" class="interactive-stars" aria-label="Rate this movie from 0 to 5 stars">
+                {% for i in range(1, 6) %}
+                <span class="star" data-value="{{ i }}" role="button" tabindex="0" aria-label="{{ i }} star{% if i > 1 %}s{% endif %}"><i class="fa fa-star-o"></i></span>
+                {% endfor %}
+            </div>
+            <input type="number" id="user_rating_value_input" name="rating" class="form-input-hidden" min="0" max="5" step="0.5" 
+                   value="{% if current_user_rating is not none %}{{ current_user_rating }}{% else %}0{% endif %}">
+            <span id="current-rating-text" class="current-rating-text">
+                Current: {% if current_user_rating is not none %}{{ current_user_rating }}/5 stars{% else %}Not yet rated{% endif %}
+            </span>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="custom-button">Update Rating</button>
+            <button type="button" class="custom-button custom-button-secondary" onclick="window.location.href='{{ url_for('movie_page', movie_id=movie.id) }}';">Cancel</button>
+        </div>
+    </form>
+
+    {% if current_user_rating is not none %}
+    <p class="mt-3" style="font-size:0.85em; color:#aaa; text-align:center;">
+        <small>Tip: Click on an already selected rating (or its half) to set it to 0 (remove rating).</small>
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const starWidget = document.getElementById('interactive-star-rating-widget');
+    if (!starWidget) return;
+
+    const stars = Array.from(starWidget.querySelectorAll('.star'));
+    const ratingInput = document.getElementById('user_rating_value_input'); // Geänderte ID hier verwenden
+    const currentRatingText = document.getElementById('current-rating-text');
+
+    let currentRating = parseFloat(ratingInput.value) || 0;
+
+    function renderStars(ratingToRender) {
+        stars.forEach(star => {
+            const starValue = parseInt(star.dataset.value);
+            const icon = star.querySelector('i.fa');
+            
+            icon.classList.remove('fa-star', 'fa-star-half-o', 'fa-star-o');
+            star.classList.remove('filled', 'half-filled');
+
+            if (ratingToRender >= starValue) {
+                icon.classList.add('fa-star');
+                star.classList.add('filled');
+            } else if (ratingToRender >= starValue - 0.5) {
+                icon.classList.add('fa-star-half-o'); // FontAwesome Icon für halben Stern
+                star.classList.add('half-filled');
+            } else {
+                icon.classList.add('fa-star-o');
+            }
+        });
+        if (currentRatingText) {
+            currentRatingText.textContent = `Current: ${ratingToRender > 0 ? ratingToRender + '/5 stars' : 'Not yet rated'}`;
+        }
+    }
+
+    function highlightStars(hoverRating) {
+        stars.forEach(star => {
+            const starValue = parseInt(star.dataset.value);
+            const icon = star.querySelector('i.fa');
+            
+            icon.classList.remove('fa-star', 'fa-star-half-o', 'fa-star-o', 'hovered-icon');
+            star.classList.remove('hovered-star'); // Klasse vom Span entfernen
+
+            if (hoverRating >= starValue) {
+                icon.classList.add('fa-star', 'hovered-icon');
+                star.classList.add('hovered-star'); 
+            } else if (hoverRating >= starValue - 0.5) {
+                icon.classList.add('fa-star-half-o', 'hovered-icon');
+                star.classList.add('hovered-star');
+            } else {
+                icon.classList.add('fa-star-o');
+            }
+        });
+    }
+
+    stars.forEach(star => {
+        star.addEventListener('mousemove', function(event) {
+            const rect = star.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const starValue = parseInt(star.dataset.value);
+            let hoverRating = starValue;
+            // Wenn Maus in der linken Hälfte des Sterns ist, halben Stern anzeigen
+            if (offsetX < rect.width / 2) {
+                hoverRating -= 0.5;
+            }
+            highlightStars(hoverRating);
+        });
+
+        star.addEventListener('mouseleave', function() {
+            renderStars(currentRating); // Sterne auf den gespeicherten Wert zurücksetzen
+        });
+
+        star.addEventListener('click', function(event) {
+            const rect = star.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const starValue = parseInt(star.dataset.value);
+            let clickedRating = starValue;
+
+            if (offsetX < rect.width / 2) {
+                clickedRating -= 0.5;
+            }
+            
+            // Wenn auf denselben Wert geklickt wird, wird die Bewertung auf 0 gesetzt
+            if (currentRating === clickedRating) {
+                currentRating = 0;
+            } else {
+                currentRating = clickedRating;
+            }
+
+            ratingInput.value = currentRating.toFixed(1);
+            renderStars(currentRating);
+        });
+
+        // Für Tastaturbedienung (optional, aber gut für Accessibility)
+        star.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                // Einfache Logik für Tastatur: Ganze Sterne setzen
+                // Könnte erweitert werden, um mit Pfeiltasten halbe Sterne zu wählen
+                let newRating = parseInt(star.dataset.value);
+                if (currentRating === newRating) { // Wenn aktueller ganzer Stern geklickt/Enter gedrückt wird
+                    currentRating = 0; // Setze auf 0
+                } else {
+                    currentRating = newRating;
+                }
+                ratingInput.value = currentRating.toFixed(1);
+                renderStars(currentRating);
+            }
+        });
+    });
+    renderStars(currentRating); // Initiales Rendern der Sterne
+});
+</script>
+{% endblock %} 

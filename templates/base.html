@@ -1,0 +1,147 @@
+<!-- 
+base.html
+Hauptlayout der MovieWeb App.
+Main layout for the MovieWeb application.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}MovieWeb App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+      body {
+        background-color: #000;
+        color: #f8f9fa;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+
+      .main-container {
+        width: 100%;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .app-header {
+        background-color: #1f1f1f;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #333;
+      }
+
+      .app-header .brand {
+        color: #fff;
+        text-decoration: none;
+        font-size: 1.8em;
+        font-weight: bold;
+      }
+
+      .app-nav ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        gap: 20px;
+      }
+
+      .app-nav a {
+        color: #f8f9fa;
+        text-decoration: none;
+        font-size: 1.1em;
+      }
+      .app-nav a:hover {
+        color: #ffc107;
+      }
+
+      /* Ensure <a> tags with .custom-button look like buttons */
+      a.custom-button {
+        text-decoration: none; /* Remove underline from link */
+        display: inline-block; /* Needed for padding and margin to work correctly */
+        text-align: center; /* Center text like in a button */
+        /* Weitere Button-Styles werden von der .custom-button Klasse in der externen CSS erwartet oder hier ergänzt */
+      }
+
+      .custom-footer {
+        background-color: #1a1a1a;
+        color: #ccc;
+        padding: 20px 0;
+        margin-top: 40px;
+        text-align: center;
+        font-size: 0.9em;
+        border-top: 1px solid #333;
+      }
+      .custom-footer a,
+      .custom-footer a:visited {
+        color: #ffffff; /* Weiß für Footer-Links */
+        text-decoration: none;
+      }
+      .custom-footer a:hover {
+        color: #ffc107; /* Gold beim Hovern, wie Nav-Links */
+        text-decoration: underline;
+      }
+      
+      .flash-messages .message {
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background-color: #2a2a2a;
+        color: #fff;
+      }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body {% if movie and movie.id %}data-current-movie-id="{{ movie.id }}"{% endif %}>
+    <header class="app-header">
+        <div class="main-container" style="display: flex; justify-content: space-between; align-items: center;">
+            <a class="brand" href="{{ url_for('home') }}" title="Home">MovieWeb</a>
+            <nav class="app-nav">
+                <ul>
+                    {% if g_is_user_logged_in %}
+                        <li><a href="{{ url_for('list_user_movies', user_id=g_current_user.id) }}">My Movie List</a></li>
+                        <li><a href="{{ url_for('add_movie', user_id=g_current_user.id) }}">Add Movie</a></li>
+                        <li><span style="color: #ccc; font-size: 0.9em;">Logged in as: {{ g_current_user.name }}</span></li>
+                        <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('home') }}">Home</a></li>
+                        {# Hier könnten später dedizierte Login/Register Seiten verlinkt werden, falls gewünscht #}
+                    {% endif %}
+                    <li><a href="{{ url_for('api_docs') }}">API</a></li>
+                    <li><a href="{{ url_for('about') }}">About</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for message in messages %}
+                    <div class="message">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="custom-footer">
+      <div class="main-container">
+        <p class="mb-1">&copy; {{ current_year }} MovieWeb App</p>
+        <p class="mb-0"><a href="{{ url_for('api_docs') }}" class="text-light">API Docs</a> &middot; <a href="{{ url_for('about') }}" class="text-light">About</a></p>
+      </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

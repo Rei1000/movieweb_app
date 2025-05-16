@@ -1,0 +1,23 @@
+<!--
+users.html
+Benutzerliste-Seite / Users list page
+-->
+{% extends 'base.html' %}
+
+{% block title %}Users - MovieWeb App{% endblock %}
+
+{% block content %}
+    <div class="form-header">
+        <h1>Users</h1>
+        <a href="{{ url_for('add_user') }}" class="movie-button">Benutzer hinzufügen / Add User</a>
+    </div>
+    <div class="user-list">
+        {% for user in users %}
+            <div class="user-entry">
+                <a href="{{ url_for('list_user_movies', user_id=user.id) }}">{{ user.name }}</a>
+            </div>
+        {% else %}
+            <div class="user-entry">Keine Benutzer gefunden / No users found.</div>
+        {% endfor %}
+    </div>
+{% endblock %}
