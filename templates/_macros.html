@@ -1,0 +1,76 @@
+{% macro movie_card(movie_item, user_specific_relation=None) %}
+{# 
+  Renders a movie card.
+  - movie_item: Can be either a Movie object (if coming directly from a Movie query)
+                or a UserMovie relation object (where .movie is then the Movie object).
+  - user_specific_relation: Expects a UserMovie object when viewing a specific user's list
+                              and their specific rating should be displayed.
+                              Not strictly necessary in general views (e.g., Top Movies on Home)
+                              unless user-specific details are also to be shown there (currently not the case).
+
+  Rendert eine Filmkarte.
+  - movie_item: Kann entweder ein Movie-Objekt sein (wenn direkt aus einer Movie-Query kommend)
+                oder ein UserMovie-Relationsobjekt (wo .movie dann das Movie-Objekt ist).
+  - user_specific_relation: Erwartet ein UserMovie-Objekt, wenn es um die Ansicht 
+                              eines bestimmten Benutzers geht und dessen spezifisches Rating angezeigt werden soll.
+                              Wird in der allgemeinen Ansicht (Top-Filme auf Home) nicht unbedingt benötigt,
+                              es sei denn, man möchte dort auch User-spezifische Dinge anzeigen (aktuell nicht der Fall).
+#}
+    {% set movie = movie_item.Movie if movie_item.Movie else movie_item %} {# Adjustment for different input types / Anpassung für unterschiedliche Übergabetypen #}
+    {% set user_rating = user_specific_relation.user_rating if user_specific_relation and user_specific_relation.user_rating is not none else None %}
+
+    <div class="movie-card">
+        <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit; display: block;">
+            {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
+                <img src="{{ movie.poster_url }}" class="movie-poster" alt="Poster for {{ movie.title }}">
+            {% else %}
+                <div class="placeholder-poster">
+                    {{ movie.title }}
+                </div>
+            {% endif %}
+        </a>
+        <div class="movie-card-content">
+            <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit;">
+                <h5 class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</h5>
+                <p class="movie-card-info">{{ movie.year if movie.year else 'N/A' }}</p>
+                {% if movie.director %}
+                    <p class="movie-card-info" style="font-size: 0.8em; color: #999;">{{ movie.director }}</p>
+                {% endif %}
+            </a>
+            
+            {% if user_rating is not none %}
+            <div class="star-rating" title="Your Rating: {{ user_rating }}/5" style="font-size: 0.9em; margin-bottom: 0.25rem;">
+                <strong>My Rating: </strong>
+                {% set ur_full = user_rating|int %}
+                {% set ur_half = 1 if (user_rating - ur_full) >= 0.5 else 0 %}
+                {% set ur_empty = 5 - ur_full - ur_half %}
+                {{ '★' * ur_full }}{% if ur_half %}½{% endif %}{{ '☆' * ur_empty }}
+            </div>
+            {% endif %}
+
+            {% if movie.community_rating is not none and movie.community_rating_count > 0 %}
+            <div class="star-rating" title="Community Rating: {{ movie.community_rating|round(1) }}/5 ({{ movie.community_rating_count }} vote{{ 's' if movie.community_rating_count != 1 else '' }})" 
+                 style="font-size: {{ '0.8em' if user_rating is not none else '0.9em' }}; color: #aaa;">
+                <strong>Community Avg: </strong>
+                {% set full_comm = movie.community_rating|int %}
+                {% set half_comm = 1 if (movie.community_rating - full_comm) >= 0.5 else 0 %}
+                {% set empty_comm = 5 - full_comm - half_comm %}
+                {{ '★' * full_comm }}{% if half_comm %}½{% endif %}{{ '☆' * empty_comm }} ({{movie.community_rating_count}})
+            </div>
+            {% elif user_rating is not none %} {# Show empty community stars only if there is also a user rating, for consistency / Zeige leere Community-Sterne nur, wenn auch ein User-Rating da ist, für Konsistenz #}
+            <div class="star-rating" title="No community ratings yet" style="font-size: 0.8em; color: #aaa;">
+                <strong>Community Avg: </strong> ☆☆☆☆☆ (0)
+            </div>
+            {% endif %}
+        </div>
+        {# 
+          Action buttons could be added here if the macro is also used on the user movie list 
+          and actions are desired directly on the card.
+          For home.html, no actions are needed directly on the card.
+
+          Action-Buttons könnten hier eingefügt werden, falls das Macro auch auf der User-Movie-Liste verwendet wird 
+          und Aktionen direkt auf der Karte gewünscht sind.
+          Für home.html sind keine Actions direkt auf der Karte nötig.
+        #}
+    </div>
+{% endmacro %}

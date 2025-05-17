@@ -1,5 +1,3 @@
-
-
 <!--
 recommendations.html
 Seite zur Anzeige von KI-Empfehlungen.
@@ -7,11 +5,11 @@ Page for displaying AI recommendations.
 -->
 {% extends 'base.html' %}
 
-{% block title %}Recommendations - MovieWeb App{% endblock %}
+{% block title %}Recommendations - MovieWeb App / Empfehlungen - MovieWeb App{% endblock %}
 
 {% block content %}
     <div class="form-header">
-        <h1>Recommendations for User {{ user.name if user else user_id }}</h1>
+        <h1>Recommendations for User {{ user.name if user else user_id }} / Empfehlungen für Benutzer {{ user.name if user else user_id }}</h1>
     </div>
     <div class="recommendation-box">
         <pre>{{ recommendation }}</pre>

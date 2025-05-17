@@ -21,53 +21,66 @@ class SQLiteDataManager(DataManagerInterface):
 
     def get_all_users(self) -> List[User]:
         """
-        Liefert alle Benutzer.
         Returns all users.
+        Liefert alle Benutzer.
         """
         try:
             return User.query.all()
         except SQLAlchemyError as e:
-            current_app.logger.error(f"Error fetching users: {e}")
+            # Log error when fetching all users fails.
+            # Logge Fehler, wenn das Abrufen aller Benutzer fehlschlägt.
+            current_app.logger.error(f"Error fetching users: {e} / Fehler beim Abrufen der Benutzer: {e}")
             return []
 
     def get_user_movies(self, user_id: int) -> List[Movie]:
         """
-        Liefert alle Filme eines Benutzers.
         Returns all movies for a given user.
+        Liefert alle Filme eines Benutzers.
         """
         try:
             user = User.query.get(user_id)
             if not user:
                 return []
-            # über UserMovie-Beziehung die Filme holen
+            # Fetch movies via UserMovie relationship
+            # Filme über UserMovie-Beziehung abrufen
             return [um.movie for um in user.movies]
         except SQLAlchemyError as e:
-            current_app.logger.error(f"Error fetching movies for user {user_id}: {e}")
+            # Log error when fetching movies for a specific user fails.
+            # Logge Fehler, wenn das Abrufen der Filme für einen bestimmten Benutzer fehlschlägt.
+            current_app.logger.error(f"Error fetching movies for user {user_id}: {e} / Fehler beim Abrufen der Filme für Benutzer {user_id}: {e}")
             return []
 
     def add_user(self, name: str) -> Optional[User]:
         """
-        Fügt einen neuen Benutzer hinzu.
         Adds a new user.
+        Fügt einen neuen Benutzer hinzu.
         """
-        # Defensive input: strip whitespace and normalize to lowercase / Eingabe trimmen und in Kleinschreibung
+        # Defensive input: strip whitespace and normalize to lowercase
+        # Defensive Eingabe: Leerzeichen entfernen und in Kleinbuchstaben normalisieren
         name = name.strip().lower()
         if not name:
-            current_app.logger.warning("Attempted to add user with empty name.")
+            # Log warning if attempting to add a user with an empty name.
+            # Logge Warnung bei Versuch, Benutzer mit leerem Namen hinzuzufügen.
+            current_app.logger.warning("Attempted to add user with empty name. / Versuch, Benutzer mit leerem Namen hinzuzufügen.")
             return None
-        # Duplicate check (case-insensitive) / Prüfe auf bestehenden Benutzernamen
+        # Duplicate check (case-insensitive)
+        # Prüfung auf Duplikate (Groß-/Kleinschreibung ignorieren)
         from sqlalchemy import func
         if User.query.filter(func.lower(User.name) == name).first():
-            current_app.logger.warning(f"Attempted to add duplicate user '{name}'.")
+            # Log warning if attempting to add a duplicate user.
+            # Logge Warnung bei Versuch, doppelten Benutzer hinzuzufügen.
+            current_app.logger.warning(f"Attempted to add duplicate user '{name}'. / Versuch, doppelten Benutzer '{name}' hinzuzufügen.")
             return None
         try:
-            user = User(name=name.strip())
+            user = User(name=name.strip()) # .strip() is actually redundant here due to above .strip().lower() / .strip() ist hier eigentlich redundant wegen obigem .strip().lower()
             db.session.add(user)
             db.session.commit()
             return user
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error adding user '{name}': {e}")
+            # Log error when adding a new user fails.
+            # Logge Fehler, wenn das Hinzufügen eines neuen Benutzers fehlschlägt.
+            current_app.logger.error(f"Error adding user '{name}': {e} / Fehler beim Hinzufügen von Benutzer '{name}': {e}")
             return None
 
     def add_movie(self, user_id: int, title: str, director: str, year: int, rating: float, poster_url: str = None,
@@ -76,57 +89,86 @@ class SQLiteDataManager(DataManagerInterface):
                   metascore: str = None, rated: str = None, imdb_id: str = None,
                   omdb_rating_for_community: Optional[float] = None) -> Optional[Movie]:
         """
-        Fügt einen neuen Film für einen Benutzer hinzu.
-        Adds a new movie for a user.
+        Fügt einen neuen Film für einen Benutzer hinzu. 
+        Prüft, ob der Film (via imdb_id) bereits global existiert. Wenn ja, wird er verlinkt.
+        Wenn nein, wird er global erstellt und dann verlinkt.
+        Das Rating des Benutzers wird in der UserMovie-Verknüpfung gespeichert.
+        Das Community-Rating des Films wird aktualisiert.
+
+        Adds a new movie for a user. 
+        Checks if the movie (via imdb_id) already exists globally. If so, it's linked.
+        If not, it's created globally and then linked.
+        The user's rating is stored in the UserMovie link.
+        The movie's community rating is updated.
         """
         # Defensive input stripping
+        # Eingabe-Strings bereinigen
         title = title.strip()
         director = director.strip() if director else None
 
         # Validate year (if provided) not in the future
+        # Jahr validieren (falls angegeben), darf nicht in der Zukunft liegen
         current_year = datetime.now().year
         if year is not None and year > current_year:
-            current_app.logger.warning(f"Attempted to add movie with future year: {year}")
+            # Log warning for future year.
+            # Logge Warnung für Zukunftsjahr.
+            current_app.logger.warning(f"Attempted to add movie with future year: {year}. / Versuch, Film mit Zukunftsjahr hinzuzufügen: {year}.")
             return None
 
         # Validate rating (if provided) between 0 and 5
+        # Bewertung validieren (falls angegeben), muss zwischen 0 und 5 liegen
         if rating is not None and not (0 <= rating <= 5):
-            current_app.logger.warning(f"Attempted to add movie with invalid rating: {rating}")
+            # Log warning for invalid rating.
+            # Logge Warnung für ungültige Bewertung.
+            current_app.logger.warning(f"Attempted to add movie with invalid rating: {rating}. / Versuch, Film mit ungültiger Bewertung hinzuzufügen: {rating}.")
             return None
 
         if not title:
-            current_app.logger.warning("Attempted to add movie with empty title.")
+            # Log warning for empty title.
+            # Logge Warnung für leeren Titel.
+            current_app.logger.warning("Attempted to add movie with empty title. / Versuch, Film mit leerem Titel hinzuzufügen.")
             return None
         try:
             user = User.query.get(user_id)
             if not user:
-                current_app.logger.warning(f"User {user_id} not found.")
+                # Log warning if user not found.
+                # Logge Warnung, wenn Benutzer nicht gefunden wurde.
+                current_app.logger.warning(f"User {user_id} not found. / Benutzer {user_id} nicht gefunden.")
                 return None
 
+            # Check if a movie with this imdb_id already exists
             # Prüfen, ob ein Film mit dieser imdb_id bereits existiert
             movie = None
             if imdb_id:
                 movie = Movie.query.filter_by(imdb_id=imdb_id).first()
 
-            if movie: # Film existiert bereits global
-                current_app.logger.info(f"Movie with imdb_id {imdb_id} already exists. Linking to user {user_id}.")
-                # Optional: Hier könnte man das existierende Movie-Objekt mit den neuen Daten aktualisieren, falls gewünscht.
-                # Das community_rating wird später durch _update_community_rating neu berechnet.
-            else: # Film existiert global noch nicht, neu erstellen
-                current_app.logger.info(f"Movie with imdb_id {imdb_id} not found. Creating new entry.")
+            if movie: # Movie already exists globally / Film existiert bereits global
+                # Log info: Movie exists, linking to user.
+                # Info-Log: Film existiert, wird mit Benutzer verknüpft.
+                current_app.logger.info(f"Movie with imdb_id {imdb_id} already exists. Linking to user {user_id}. / Film mit imdb_id {imdb_id} existiert bereits. Wird mit Benutzer {user_id} verknüpft.")
+                # Optional: Update existing movie data here if desired.
+                # Community rating will be recalculated later by _update_community_rating.
+                # Optional: Hier könnten existierende Filmdaten aktualisiert werden, falls gewünscht.
+                # Das Community-Rating wird später durch _update_community_rating neu berechnet.
+            else: # Movie does not exist globally, create new entry / Film existiert global noch nicht, neu erstellen
+                # Log info: Movie not found, creating new entry.
+                # Info-Log: Film nicht gefunden, neuer Eintrag wird erstellt.
+                current_app.logger.info(f"Movie with imdb_id {imdb_id} not found. Creating new entry. / Film mit imdb_id {imdb_id} nicht gefunden. Neuer Eintrag wird erstellt.")
                 
                 initial_community_rating = None
                 initial_community_rating_count = 0
                 if omdb_rating_for_community is not None and 0 <= omdb_rating_for_community <= 5:
                     initial_community_rating = omdb_rating_for_community
-                    initial_community_rating_count = 1 # Zählt als eine initiale "Bewertung"
-                    current_app.logger.info(f"Using OMDb rating {omdb_rating_for_community} as initial community rating for movie {imdb_id}.")
+                    initial_community_rating_count = 1 # Counts as one initial "rating" / Zählt als eine initiale "Bewertung"
+                    # Log info: Using OMDb rating for initial community rating.
+                    # Info-Log: OMDb-Rating wird als initiales Community-Rating verwendet.
+                    current_app.logger.info(f"Using OMDb rating {omdb_rating_for_community} as initial community rating for movie {imdb_id}. / OMDb-Rating {omdb_rating_for_community} wird als initiales Community-Rating für Film {imdb_id} verwendet.")
 
                 movie = Movie(
                     title=title,
                     director=director,
                     year=year,
-                    community_rating=initial_community_rating, # Initiales Community-Rating setzen
+                    community_rating=initial_community_rating, # Set initial community rating / Initiales Community-Rating setzen
                     community_rating_count=initial_community_rating_count,
                     poster_url=poster_url,
                     plot=plot,
@@ -142,30 +184,42 @@ class SQLiteDataManager(DataManagerInterface):
                     imdb_id=imdb_id
                 )
                 db.session.add(movie)
-                db.session.flush() # movie.id verfügbar machen für UserMovie
+                db.session.flush() # Make movie.id available for UserMovie / movie.id für UserMovie verfügbar machen
 
+            # Check if the UserMovie link already exists
             # Prüfen, ob die UserMovie-Verknüpfung bereits existiert
             user_movie_link = UserMovie.query.filter_by(user_id=user.id, movie_id=movie.id).first()
             if not user_movie_link:
-                um = UserMovie(user_id=user.id, movie_id=movie.id, user_rating=rating) # user_rating hier setzen
+                um = UserMovie(user_id=user.id, movie_id=movie.id, user_rating=rating) # Set user_rating here / user_rating hier setzen
                 db.session.add(um)
-                current_app.logger.info(f"New UserMovie link for user {user.id}, movie {movie.id} with user_rating {rating}")
+                # Log info: New UserMovie link created.
+                # Info-Log: Neue UserMovie-Verknüpfung erstellt.
+                current_app.logger.info(f"New UserMovie link for user {user.id}, movie {movie.id} with user_rating {rating}. / Neue UserMovie-Verknüpfung für Benutzer {user.id}, Film {movie.id} mit Benutzerbewertung {rating}.")
             else:
-                current_app.logger.info(f"Movie {movie.id} already linked to user {user.id}.")
-                # Wenn bereits verlinkt, das übergebene Rating als user_rating für diese Verknüpfung setzen/aktualisieren
+                # Log info: Movie already linked to user.
+                # Info-Log: Film ist bereits mit Benutzer verknüpft.
+                current_app.logger.info(f"Movie {movie.id} already linked to user {user.id}. / Film {movie.id} ist bereits mit Benutzer {user.id} verknüpft.")
+                # If already linked, set/update the passed rating as user_rating for this link
+                # Wenn bereits verlinkt, die übergebene Bewertung als user_rating für diese Verknüpfung setzen/aktualisieren
                 if rating is not None and user_movie_link.user_rating != rating:
                     user_movie_link.user_rating = rating
-                    current_app.logger.info(f"Updating user_rating for existing link user {user.id}, movie {movie.id} to {rating}")
-                elif rating is None and user_movie_link.user_rating is not None: # Fall: User will Rating explizit löschen
+                    # Log info: Updating user_rating for existing link.
+                    # Info-Log: Benutzerbewertung für existierende Verknüpfung wird aktualisiert.
+                    current_app.logger.info(f"Updating user_rating for existing link user {user.id}, movie {movie.id} to {rating}. / Benutzerbewertung für existierende Verknüpfung Benutzer {user.id}, Film {movie.id} auf {rating} aktualisiert.")
+                elif rating is None and user_movie_link.user_rating is not None: # Case: User explicitly wants to remove rating / Fall: Benutzer möchte Bewertung explizit entfernen
                     user_movie_link.user_rating = None
-                    current_app.logger.info(f"Removing user_rating for existing link user {user.id}, movie {movie.id}")
+                    # Log info: Removing user_rating for existing link.
+                    # Info-Log: Benutzerbewertung für existierende Verknüpfung wird entfernt.
+                    current_app.logger.info(f"Removing user_rating for existing link user {user.id}, movie {movie.id}. / Benutzerbewertung für existierende Verknüpfung Benutzer {user.id}, Film {movie.id} entfernt.")
 
-            db.session.commit() # Änderungen an UserMovie und ggf. neuem Movie speichern
-            self._update_community_rating(movie.id) # Community-Rating basierend auf allen UserMovie-Einträgen aktualisieren
+            db.session.commit() # Save changes to UserMovie and possibly new Movie / Änderungen an UserMovie und ggf. neuem Movie speichern
+            self._update_community_rating(movie.id) # Update community rating based on all UserMovie entries / Community-Rating basierend auf allen UserMovie-Einträgen aktualisieren
             return movie
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error adding movie '{title}' for user {user_id}: {e}")
+            # Log error: Failed to add movie for user.
+            # Fehler-Log: Film konnte für Benutzer nicht hinzugefügt werden.
+            current_app.logger.error(f"Error adding movie '{title}' for user {user_id}: {e} / Fehler beim Hinzufügen des Films '{title}' für Benutzer {user_id}: {e}")
             return None
 
     def update_user_rating_for_movie(self, user_id: int, movie_id: int, new_rating: Optional[float]) -> bool:
@@ -173,103 +227,133 @@ class SQLiteDataManager(DataManagerInterface):
         Aktualisiert das individuelle Rating eines Benutzers für einen Film.
         Berechnet danach das Community-Rating des Films neu.
         new_rating kann None sein, um ein existierendes Rating zu entfernen.
+
+        Updates an individual user's rating for a movie.
+        Recalculates the movie's community rating afterwards.
+        new_rating can be None to remove an existing rating.
         """
         try:
             user_movie_link = UserMovie.query.filter_by(user_id=user_id, movie_id=movie_id).first()
 
             if not user_movie_link:
-                current_app.logger.warning(f"No link found for user {user_id} and movie {movie_id} to update rating.")
-                # Optional: Wenn der Film global existiert, aber der User ihn noch nicht in der Liste hat,
-                # könnte man hier die Verknüpfung erstellen und das Rating setzen.
-                # Fürs Erste: Nur Fehler, wenn keine Verknüpfung da ist.
+                # Log warning: No link found to update rating.
+                # Warnungs-Log: Keine Verknüpfung zum Aktualisieren der Bewertung gefunden.
+                current_app.logger.warning(f"No link found for user {user_id} and movie {movie_id} to update rating. / Keine Verknüpfung für Benutzer {user_id} und Film {movie_id} zum Aktualisieren der Bewertung gefunden.")
+                # Optional: If the movie exists globally but the user doesn't have it in their list yet,
+                # one could create the link here and set the rating.
+                # Vorerst: Nur Fehler, wenn keine Verknüpfung vorhanden ist.
                 return False
             
             if new_rating is not None and not (0 <= new_rating <= 5):
-                current_app.logger.warning(f"Attempted to update with invalid rating: {new_rating}")
+                # Log warning: Attempted to update with invalid rating.
+                # Warnungs-Log: Versuch, mit ungültiger Bewertung zu aktualisieren.
+                current_app.logger.warning(f"Attempted to update with invalid rating: {new_rating}. / Versuch, mit ungültiger Bewertung zu aktualisieren: {new_rating}.")
                 return False
 
             user_movie_link.user_rating = new_rating
             db.session.commit()
-            current_app.logger.info(f"User rating for user {user_id}, movie {movie_id} updated to {new_rating}.")
+            # Log info: User rating updated.
+            # Info-Log: Benutzerbewertung aktualisiert.
+            current_app.logger.info(f"User rating for user {user_id}, movie {movie_id} updated to {new_rating}. / Benutzerbewertung für Benutzer {user_id}, Film {movie_id} aktualisiert auf {new_rating}.")
             
+            # Update the movie's community rating
             # Community-Rating des Films aktualisieren
             return self._update_community_rating(movie_id)
             
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error updating user rating for user {user_id}, movie {movie_id}: {e}")
+            # Log error: Failed to update user rating.
+            # Fehler-Log: Benutzerbewertung konnte nicht aktualisiert werden.
+            current_app.logger.error(f"Error updating user rating for user {user_id}, movie {movie_id}: {e} / Fehler beim Aktualisieren der Benutzerbewertung für Benutzer {user_id}, Film {movie_id}: {e}")
             return False
 
     def delete_movie(self, movie_id: int) -> bool:
         """
-        Löscht einen Film anhand seiner ID.
-        WICHTIG: Muss auch das Community-Rating aktualisieren, falls der gelöschte Film User-Ratings hatte.
-        Dies ist komplexer, da UserMovie-Einträge kaskadierend gelöscht werden.
-        Eine einfachere Lösung ist, dass delete_movie nur die Movie-Verknüpfung eines Users löscht,
-        nicht den globalen Movie-Eintrag, es sei denn, kein User hat ihn mehr.
-        Fürs Erste belassen wir die alte delete_movie Logik (löscht global) und akzeptieren, dass
-        Community Ratings nicht neu berechnet werden, wenn ein Film global gelöscht wird.
-        BESSER: delete_movie_from_user_list(user_id, movie_id)
+        DEPRECATED (potentially). Consider using delete_movie_from_user_list for typical user actions.
+        Löscht einen Film global anhand seiner ID. Dies entfernt den Film für ALLE Benutzer und auch alle zugehörigen UserMovie-Verknüpfungen und Kommentare durch Kaskadierung in den Modellen.
+        Diese Funktion sollte mit Vorsicht verwendet werden, typischerweise nur für administrative Zwecke.
+        Wenn ein Benutzer einen Film nur aus seiner persönlichen Liste entfernen möchte, sollte `delete_movie_from_user_list` verwendet werden.
+        
+        DEPRECATED (potenziell). Erwägen Sie die Verwendung von delete_movie_from_user_list für typische Benutzeraktionen.
+        Deletes a movie globally by its ID. This removes the movie for ALL users and also all associated UserMovie links and comments through cascading in the models.
+        This function should be used with caution, typically only for administrative purposes.
+        If a user only wants to remove a movie from their personal list, `delete_movie_from_user_list` should be used.
         """
         try:
             movie = Movie.query.get(movie_id)
             if not movie:
-                current_app.logger.warning(f"Movie {movie_id} not found.")
+                # Log warning: Movie not found for global deletion.
+                # Warnungs-Log: Film für globale Löschung nicht gefunden.
+                current_app.logger.warning(f"Movie {movie_id} not found for global deletion. / Film {movie_id} für globale Löschung nicht gefunden.")
                 return False
             db.session.delete(movie)
             db.session.commit()
+            # Log info: Movie and associations deleted globally.
+            # Info-Log: Film und zugehörige Verknüpfungen global gelöscht.
+            current_app.logger.info(f"Movie {movie_id} and all its associations (UserMovie, Comment) deleted globally. / Film {movie_id} und alle zugehörigen Verknüpfungen (UserMovie, Comment) global gelöscht.")
             return True
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error deleting movie {movie_id}: {e}")
+            # Log error: Failed to delete movie globally.
+            # Fehler-Log: Film konnte nicht global gelöscht werden.
+            current_app.logger.error(f"Error deleting movie {movie_id} globally: {e} / Fehler beim globalen Löschen von Film {movie_id}: {e}")
             return False
 
     def add_existing_movie_to_user_list(self, user_id: int, movie_id: int) -> bool:
         """
         Fügt einen bereits existierenden Film zur Liste eines Benutzers hinzu (UserMovie-Verknüpfung).
-        Das Rating des Films selbst wird hierbei nicht verändert, nur die Verknüpfung hergestellt.
+        Das Rating des Films selbst wird hierbei nicht verändert, nur die Verknüpfung hergestellt. Ein initiale User-Rating wird nicht gesetzt.
+
+        Adds an already existing movie to a user's list (UserMovie link).
+        The movie's rating itself is not changed here, only the link is established. An initial user rating is not set.
         """
         try:
             user = User.query.get(user_id)
             if not user:
-                current_app.logger.warning(f"User {user_id} not found for adding movie to list.")
+                current_app.logger.warning(f"User {user_id} not found for adding movie to list. / Benutzer {user_id} nicht gefunden, um Film zur Liste hinzuzufügen.")
                 return False
             
             movie = Movie.query.get(movie_id)
             if not movie:
-                current_app.logger.warning(f"Movie {movie_id} not found for adding to user list.")
+                current_app.logger.warning(f"Movie {movie_id} not found for adding to user list. / Film {movie_id} nicht gefunden, um zur Benutzerliste hinzugefügt zu werden.")
                 return False
 
+            # Check if the link already exists
             # Prüfen, ob die Verknüpfung bereits existiert
             existing_link = UserMovie.query.filter_by(user_id=user_id, movie_id=movie_id).first()
             if existing_link:
-                current_app.logger.info(f"Movie {movie_id} is already in list of user {user_id}.")
-                return True # Bereits vorhanden, als Erfolg werten
+                current_app.logger.info(f"Movie {movie_id} is already in list of user {user_id}. / Film {movie_id} ist bereits in der Liste von Benutzer {user_id}.")
+                return True # Already exists, treat as success / Bereits vorhanden, als Erfolg werten
 
+            # Create new UserMovie link
             # Neue UserMovie-Verknüpfung erstellen
-            user_movie_link = UserMovie(user_id=user.id, movie_id=movie.id, user_rating=None) # user_rating initial None
+            user_movie_link = UserMovie(user_id=user.id, movie_id=movie.id, user_rating=None) # user_rating initially None / user_rating initial None
             db.session.add(user_movie_link)
             db.session.commit()
-            current_app.logger.info(f"Added movie {movie_id} to list of user {user_id} (no initial rating).")
-            self._update_community_rating(movie_id) # Community-Rating aktualisieren
+            current_app.logger.info(f"Added movie {movie_id} to list of user {user_id} (no initial rating). / Film {movie_id} zur Liste von Benutzer {user_id} hinzugefügt (keine initiale Bewertung).")
+            self._update_community_rating(movie_id) # Update community rating / Community-Rating aktualisieren
             return True
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error adding movie {movie_id} to list for user {user_id}: {e}")
+            current_app.logger.error(f"Error adding movie {movie_id} to list for user {user_id}: {e} / Fehler beim Hinzufügen von Film {movie_id} zur Liste für Benutzer {user_id}: {e}")
             return False
 
     def _update_community_rating(self, movie_id: int) -> bool:
         """
         Private Hilfsmethode, um das Community-Rating eines Films neu zu berechnen.
-        Wird aufgerufen, nachdem ein User-Rating hinzugefügt oder geändert wurde.
+        Wird aufgerufen, nachdem ein User-Rating hinzugefügt, geändert oder entfernt wurde.
+
+        Private helper method to recalculate a movie's community rating.
+        Called after a user rating is added, changed, or removed.
         """
         try:
             movie = Movie.query.get(movie_id)
             if not movie:
-                current_app.logger.warning(f"Movie {movie_id} not found for updating community rating.")
+                current_app.logger.warning(f"Movie {movie_id} not found for updating community rating. / Film {movie_id} nicht gefunden zum Aktualisieren des Community-Ratings.")
                 return False
 
-            # Alle gültigen User-Ratings für diesen Film holen
+            # Get all valid user ratings for this movie
+            # Alle gültigen Benutzerbewertungen für diesen Film abrufen
             user_ratings = db.session.query(UserMovie.user_rating).filter(
                 UserMovie.movie_id == movie_id,
                 UserMovie.user_rating.isnot(None)
@@ -281,15 +365,15 @@ class SQLiteDataManager(DataManagerInterface):
                 movie.community_rating = sum(ratings_list) / len(ratings_list)
                 movie.community_rating_count = len(ratings_list)
             else:
-                movie.community_rating = None
+                movie.community_rating = None # No ratings, so no average / Keine Bewertungen, also kein Durchschnitt
                 movie.community_rating_count = 0
             
             db.session.commit()
-            current_app.logger.info(f"Community rating for movie {movie_id} updated: {movie.community_rating} ({movie.community_rating_count} ratings)")
+            current_app.logger.info(f"Community rating for movie {movie_id} updated: {movie.community_rating} ({movie.community_rating_count} ratings). / Community-Rating für Film {movie_id} aktualisiert: {movie.community_rating} ({movie.community_rating_count} Bewertungen).")
             return True
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error updating community rating for movie {movie_id}: {e}")
+            current_app.logger.error(f"Error updating community rating for movie {movie_id}: {e} / Fehler beim Aktualisieren des Community-Ratings für Film {movie_id}: {e}")
             return False
 
     def delete_movie_from_user_list(self, user_id: int, movie_id: int) -> bool:
@@ -297,25 +381,31 @@ class SQLiteDataManager(DataManagerInterface):
         Entfernt einen Film aus der Liste eines bestimmten Benutzers (löscht die UserMovie-Verknüpfung).
         Aktualisiert danach das Community-Rating des Films.
         Gibt True zurück bei Erfolg, sonst False.
+
+        Removes a movie from a specific user's list (deletes the UserMovie link).
+        Updates the movie's community rating afterwards.
+        Returns True on success, otherwise False.
         """
         try:
             user_movie_link = UserMovie.query.filter_by(user_id=user_id, movie_id=movie_id).first()
 
             if not user_movie_link:
-                current_app.logger.warning(f"No link found for user {user_id} and movie {movie_id} to delete.")
-                return False # Film war nicht in der Liste des Users
+                current_app.logger.warning(f"No link found for user {user_id} and movie {movie_id} to delete. / Keine Verknüpfung für Benutzer {user_id} und Film {movie_id} zum Löschen gefunden.")
+                return False # Movie was not in the user's list / Film war nicht in der Liste des Benutzers
 
             db.session.delete(user_movie_link)
             db.session.commit()
-            current_app.logger.info(f"Movie {movie_id} removed from list of user {user_id}.")
+            current_app.logger.info(f"Movie {movie_id} removed from list of user {user_id}. / Film {movie_id} aus der Liste von Benutzer {user_id} entfernt.")
             
-            # Community-Rating des Films aktualisieren, da ein Rating entfernt wurde
-            # (auch wenn das user_rating None war, könnte es theoretisch das letzte sein, was die Berechnung beeinflusst)
+            # Update the movie's community rating, as a rating might have been removed
+            # (even if user_rating was None, it could theoretically be the last one affecting the calculation if it was the only link)
+            # Community-Rating des Films aktualisieren, da möglicherweise eine Bewertung entfernt wurde
+            # (selbst wenn user_rating None war, könnte es theoretisch das letzte sein, das die Berechnung beeinflusst, wenn es die einzige Verknüpfung war)
             return self._update_community_rating(movie_id)
             
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error removing movie {movie_id} from list for user {user_id}: {e}")
+            current_app.logger.error(f"Error removing movie {movie_id} from list for user {user_id}: {e} / Fehler beim Entfernen von Film {movie_id} aus der Liste für Benutzer {user_id}: {e}")
             return False
 
     def get_movie_by_imdb_id(self, imdb_id: str) -> Optional[Movie]:
@@ -326,45 +416,59 @@ class SQLiteDataManager(DataManagerInterface):
         try:
             return Movie.query.filter_by(imdb_id=imdb_id).first()
         except SQLAlchemyError as e:
-            current_app.logger.error(f"Error fetching movie by imdb_id {imdb_id}: {e}")
+            current_app.logger.error(f"Error fetching movie by imdb_id {imdb_id}: {e} / Fehler beim Abrufen des Films nach imdb_id {imdb_id}: {e}")
             return None
 
     def add_movie_globally(self, movie_data: dict) -> Optional[Movie]:
         """
-        Fügt einen Film global zur Datenbank hinzu, wenn er nicht bereits existiert.
+        Fügt einen Film global zur Datenbank hinzu, wenn er nicht bereits existiert (basierend auf imdbID).
         Wenn ein OMDb-Rating vorhanden ist, wird dieses als initiales Community-Rating verwendet.
         Aktualisiert keine bestehenden Filmdaten, wenn der Film bereits existiert.
         Nimmt ein Dictionary mit Filmdetails entgegen (ähnlich OMDb-Antwort).
         Gibt das Movie-Objekt zurück (entweder das neu erstellte oder das bereits existierende).
+
+        Adds a movie globally to the database if it doesn't already exist (based on imdbID).
+        If an OMDb rating is present, it is used as the initial community rating.
+        Does not update existing movie data if the movie already exists.
+        Accepts a dictionary with movie details (similar to OMDb response).
+        Returns the Movie object (either newly created or pre-existing).
         """
         imdb_id = movie_data.get('imdbID')
         if not imdb_id:
-            current_app.logger.warning("Attempted to add global movie without imdbID.")
+            current_app.logger.warning("Attempted to add global movie without imdbID. / Versuch, globalen Film ohne imdbID hinzuzufügen.")
             return None
 
         try:
             existing_movie = Movie.query.filter_by(imdb_id=imdb_id).first()
             if existing_movie:
-                current_app.logger.info(f"Movie with imdb_id {imdb_id} already exists globally. Returning existing.")
+                current_app.logger.info(f"Movie with imdb_id {imdb_id} already exists globally. Returning existing. / Film mit imdb_id {imdb_id} existiert bereits global. Bestehender wird zurückgegeben.")
                 return existing_movie
             
-            # Konvertiere das Jahr sicher. OMDb 'Year' kann 'YYYY' oder 'YYYY–YYYY' (TV Series) sein.
+            # Convert year safely. OMDb 'Year' can be 'YYYY' or 'YYYY–YYYY' (TV Series).
+            # Jahr sicher konvertieren. OMDb 'Year' kann 'JJJJ' oder 'JJJJ–JJJJ' (TV-Serie) sein.
             year_str = movie_data.get('Year', '').strip()
             year = None
             if year_str:
                 try:
-                    # Nimm nur das erste Jahr, falls es ein Bereich ist
-                    year = int(year_str.split('–')[0].split('-')[0].strip())
+                    # Take only the first year if it's a range
+                    # Nur das erste Jahr nehmen, falls es ein Bereich ist
+                    year_part = year_str.split('–')[0].split('-')[0].strip() # Handles both en-dash and hyphen / Behandelt Gedankenstrich und Bindestrich
+                    if year_part.isdigit(): # Ensure it's all digits before int() / Sicherstellen, dass es nur Ziffern sind vor int()
+                         year = int(year_part)
+                    else:
+                        current_app.logger.warning(f"Invalid year format (non-digit part) for global movie {imdb_id}: {year_str}. / Ungültiges Jahresformat (nicht-numerischer Teil) für globalen Film {imdb_id}: {year_str}.")
                 except ValueError:
-                    current_app.logger.warning(f"Invalid year format for global movie {imdb_id}: {year_str}")
-                    # Optional: Film trotzdem ohne Jahr hinzufügen oder Fehler
-                    # For now, proceed without year if format is unexpected beyond simple parsing
+                    current_app.logger.warning(f"Invalid year format for global movie {imdb_id}: {year_str}. / Ungültiges Jahresformat für globalen Film {imdb_id}: {year_str}.")
+                    # Optional: Add movie without year or error out / Optional: Film ohne Jahr hinzufügen oder Fehler ausgeben
+                    # For now, proceed without year if format is unexpected beyond simple parsing / Vorerst ohne Jahr fortfahren, wenn das Format unerwartet ist
 
             # Poster URL Handling
+            # Behandlung der Poster-URL
             poster_url = movie_data.get('Poster')
-            if poster_url == 'N/A':
+            if poster_url == 'N/A': # Treat OMDb's N/A as None / OMDb's N/A als None behandeln
                 poster_url = None
 
+            # Process OMDb rating for initial community rating
             # OMDb-Rating für initiales Community-Rating verarbeiten
             initial_community_rating_val = None
             initial_community_rating_count_val = 0
@@ -372,13 +476,13 @@ class SQLiteDataManager(DataManagerInterface):
             if raw_omdb_rating and raw_omdb_rating != 'N/A':
                 try:
                     rating10 = float(raw_omdb_rating)
-                    rating5 = round(rating10 / 2 * 2) / 2 # Umrechnung auf 0-5 Skala, halbe Schritte
+                    rating5 = round(rating10 / 2 * 2) / 2 # Convert to 0-5 scale, half steps / Umrechnung auf 0-5 Skala, halbe Schritte
                     if 0 <= rating5 <= 5:
                         initial_community_rating_val = rating5
                         initial_community_rating_count_val = 1
-                        current_app.logger.info(f"Using OMDb rating {rating5} ({raw_omdb_rating}/10) as initial community rating for global movie {imdb_id}.")
+                        current_app.logger.info(f"Using OMDb rating {rating5} ({raw_omdb_rating}/10) as initial community rating for global movie {imdb_id}. / OMDb-Rating {rating5} ({raw_omdb_rating}/10) als initiales Community-Rating für globalen Film {imdb_id} verwendet.")
                 except ValueError:
-                    current_app.logger.warning(f"Invalid imdbRating format for global movie {imdb_id}: {raw_omdb_rating}")
+                    current_app.logger.warning(f"Invalid imdbRating format for global movie {imdb_id}: {raw_omdb_rating}. / Ungültiges imdbRating-Format für globalen Film {imdb_id}: {raw_omdb_rating}.")
 
             new_movie = Movie(
                 imdb_id=imdb_id,
@@ -396,18 +500,18 @@ class SQLiteDataManager(DataManagerInterface):
                 country=movie_data.get('Country', '').strip() or None,
                 metascore=movie_data.get('Metascore', '').strip() or None,
                 rated_omdb=movie_data.get('Rated', '').strip() or None, # 'Rated' in OMDb
-                community_rating=initial_community_rating_val, # Hier setzen
-                community_rating_count=initial_community_rating_count_val # Hier setzen
+                community_rating=initial_community_rating_val, # Set here / Hier setzen
+                community_rating_count=initial_community_rating_count_val # Set here / Hier setzen
             )
             db.session.add(new_movie)
             db.session.commit()
-            current_app.logger.info(f"Movie with imdb_id {imdb_id} added globally with id {new_movie.id}.")
+            current_app.logger.info(f"Movie with imdb_id {imdb_id} added globally with id {new_movie.id}. / Film mit imdb_id {imdb_id} global mit ID {new_movie.id} hinzugefügt.")
             return new_movie
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error adding global movie with imdb_id {imdb_id}: {e}")
+            current_app.logger.error(f"Error adding global movie with imdb_id {imdb_id}: {e}. / Fehler beim Hinzufügen des globalen Films mit imdb_id {imdb_id}: {e}.")
             return None
-        except Exception as e: # Catch other potential errors like int conversion
+        except Exception as e: # Catch other potential errors like int conversion / Andere potenzielle Fehler wie int-Konvertierung abfangen
             db.session.rollback()
-            current_app.logger.error(f"Unexpected error adding global movie with imdb_id {imdb_id}: {e}")
+            current_app.logger.error(f"Unexpected error adding global movie with imdb_id {imdb_id}: {e}. / Unerwarteter Fehler beim Hinzufügen des globalen Films mit imdb_id {imdb_id}: {e}.")
             return None

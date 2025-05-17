@@ -9,7 +9,7 @@ Benutzerliste-Seite / Users list page
 {% block content %}
     <div class="form-header">
         <h1>Users</h1>
-        <a href="{{ url_for('add_user') }}" class="movie-button">Benutzer hinzufügen / Add User</a>
+        <a href="{{ url_for('add_user') }}" class="movie-button">Add User</a>
     </div>
     <div class="user-list">
         {% for user in users %}
@@ -17,7 +17,7 @@ Benutzerliste-Seite / Users list page
                 <a href="{{ url_for('list_user_movies', user_id=user.id) }}">{{ user.name }}</a>
             </div>
         {% else %}
-            <div class="user-entry">Keine Benutzer gefunden / No users found.</div>
+            <div class="user-entry">No users found.</div>
         {% endfor %}
     </div>
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import movie_card %}
 
 {% block title %}MovieWeb App - Find Your Next Movie{% endblock %}
 
@@ -8,7 +9,7 @@
     <h1>Lost in Movie Limbo?</h1>
     <p class="lead">
         Hey there, cinephile! Tired of endless scrolling, wondering what masterpiece to watch next? 
-        You've come to the right place!
+        You've come to the right place! 
     </p>
     <p>
         Dive into our <strong>Community Top 10</strong> for some crowd-sourced brilliance, or let our
@@ -17,24 +18,38 @@
     <p>
         Even better? <strong>Join our awesome community!</strong> Just a name is all it takes – no pesky confirmation emails, no fuss. 
         Simply sign up to curate your personal movie lists, discover flicks, dive into detailed film info, and check out 
-        community ratings and comments.
+        community ratings and comments. 
     </p>
     <p>
-        <strong>Be part of the action. Hollywood (and your couch) needs you!</strong>
+        <strong>Be part of the action. Hollywood (and your couch) needs you!</strong> 
     </p>
-    <div class="cta-buttons">
-        <p style="font-size: 1.1em; color: #ffc107;">Ready to jump in? Register below!</p>
+    <div class="cta-buttons" style="margin-top: 25px;">
+        <p style="font-size: 1.1em; color: #ffc107;">Ready to jump in? Log in if you have an account, or register below!</p>
     </div>
 </div>
 
-<div class="login-prompt-home" id="login-section-home">
-    <p>Join MovieWeb or log in to manage your movie lists and participate!</p>
-    <form id="loginFormHome" onsubmit="event.preventDefault(); loginOrRegisterHome();">
-        <input type="text" id="usernameInputHome" name="username" placeholder="Enter your name" required>
-        <input type="hidden" id="csrfTokenHome" value="{{ csrf_token() }}">
-        <button type="submit" class="custom-button">Login / Register</button>
-    </form>
-    <div id="loginMessageHome" style="margin-top: 10px; color: #ffc107;"></div>
+<div class="login-register-forms-container" style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; margin-bottom:30px;">
+
+    <div class="auth-form-wrapper" id="login-section-home">
+        <h3 style="text-align:center; color:#eee;">Login</h3>
+        <form id="loginFormHome" class="auth-form">
+            <input type="text" id="loginUsernameInputHome" name="username" placeholder="Enter your name" required class="auth-input">
+            <input type="hidden" id="loginCsrfTokenHome" value="{{ csrf_token() }}">
+            <button type="submit" class="custom-button auth-button">Login</button>
+        </form>
+        <div id="loginMessageHome" class="auth-message"></div>
+    </div>
+
+    <div class="auth-form-wrapper" id="register-section-home">
+        <h3 style="text-align:center; color:#eee;">Register</h3>
+        <form id="registerFormHome" class="auth-form">
+            <input type="text" id="registerUsernameInputHome" name="username" placeholder="Choose a name" required class="auth-input">
+            <input type="hidden" id="registerCsrfTokenHome" value="{{ csrf_token() }}">
+            <button type="submit" class="custom-button auth-button">Register</button>
+        </form>
+        <div id="registerMessageHome" class="auth-message"></div>
+    </div>
+
 </div>
 {% endif %}
 
@@ -42,33 +57,7 @@
 {% if top_movies %}
 <div class="movie-grid">
     {% for movie_relation in top_movies %}
-        {% set movie = movie_relation.Movie if movie_relation.Movie else movie_relation %} {# Anpassung für die direkte Query #}
-        <a href="{{ url_for('movie_page', movie_id=movie.id) }}" class="movie-card">
-            {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
-                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}">
-            {% else %}
-                <div class="placeholder-poster">
-                    {{ movie.title }}
-                </div>
-            {% endif %}
-            <div class="movie-card-content">
-                <h5 class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</h5>
-                <p class="movie-card-info">{{ movie.year }}</p>
-                {% if movie.community_rating is not none and movie.community_rating_count > 0 %}
-                <div class="star-rating" title="Community Rating: {{ movie.community_rating|round(1) }}/5 ({{ movie.community_rating_count }} votes)">
-                    <strong>Community Rating: </strong>
-                    {% set full_comm = movie.community_rating|int %}
-                    {% set half_comm = 1 if (movie.community_rating - full_comm) >= 0.5 else 0 %}
-                    {% set empty_comm = 5 - full_comm - half_comm %}
-                    {{ '★' * full_comm }}{% if half_comm %}½{% endif %}{{ '☆' * empty_comm }} ({{ movie.community_rating_count }})
-                </div>
-                {% else %}
-                 <div class="star-rating" title="No community ratings yet">
-                    <strong>Community Rating: </strong> ☆☆☆☆☆ (0)
-                </div>
-                {% endif %}
-            </div>
-        </a>
+        {{ movie_card(movie_relation.Movie) }}
     {% endfor %}
 </div>
 {% else %}
@@ -83,19 +72,19 @@
     .welcome-section {
         text-align: center;
         padding: 40px 20px;
-        background-color: #1a1a1a; /* Etwas dunkler als der Hauptseitenhintergrund für Akzent */
+        background-color: #1a1a1a; /* Darker than main page background for accent / Etwas dunkler als der Hauptseitenhintergrund für Akzent */
         border-radius: 8px;
         margin-bottom: 30px;
         border: 1px solid #333;
     }
     .welcome-section h1 {
         font-size: 2.8em;
-        color: #ffc107; /* Gold für Hauptüberschrift */
+        color: #ffc107; /* Gold for main heading / Gold für Hauptüberschrift */
         margin-bottom: 15px;
     }
     .welcome-section .lead {
         font-size: 1.2em;
-        color: #e0e0e0; /* Helleres Grau für bessere Lesbarkeit */
+        color: #e0e0e0; /* Lighter grey for better readability / Helleres Grau für bessere Lesbarkeit */
         max-width: 800px;
         margin: 0 auto 20px auto;
         line-height: 1.6;
@@ -125,10 +114,10 @@
 
     .movie-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, 320px); /* Feste Breite für Karten */
+        grid-template-columns: repeat(auto-fit, 320px); /* Fixed width for cards / Feste Breite für Karten */
         gap: 1.5rem;
-        justify-content: center; /* Zentriert die Karten, wenn sie nicht die volle Breite füllen */
-        padding: 1rem 0; /* Weniger horizontales Padding, da justify-content verwendet wird */
+        justify-content: center; /* Centers cards if they don't fill full width / Zentriert die Karten, wenn sie nicht die volle Breite füllen */
+        padding: 1rem 0; /* Less horizontal padding as justify-content is used / Weniger horizontales Padding, da justify-content verwendet wird */
     }
 
     .movie-card {
@@ -142,8 +131,8 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        text-decoration: none; /* Entfernt Unterstreichung vom Link */
-        color: inherit; /* Erbt Textfarbe */
+        text-decoration: none; /* Remove underline from link / Entfernt Unterstreichung vom Link */
+        color: inherit; /* Inherit text color / Erbt Textfarbe */
     }
     .movie-card:hover {
         transform: scale(1.05) translateY(-5px);
@@ -153,15 +142,15 @@
         width: 100%;
         height: auto;
         object-fit: cover;
-        border-top-left-radius: 7px;
-        border-top-right-radius: 7px;
+        border-top-left-radius: 7px; /* Match card radius / Kartenradius anpassen */
+        border-top-right-radius: 7px; /* Match card radius / Kartenradius anpassen */
     }
     .placeholder-poster {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        min-height: 250px; /* Placeholder Höhe */
+        min-height: 250px; /* Placeholder height / Placeholder Höhe */
         background: #2c2c2c;
         color: #ccc;
         text-align: center;
@@ -195,51 +184,63 @@
         margin-bottom: 0.5rem;
         font-size: 0.9em;
     }
-    .login-prompt-home {
+    .auth-form-wrapper {
         background-color: #222;
-        padding: 20px;
-        border-radius: 5px;
-        text-align: center;
+        padding: 25px;
+        border-radius: 8px;
         border: 1px solid #383838;
+        width: 100%;
+        max-width: 400px; /* Max width for forms / Maximale Breite für die Formulare */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .login-prompt-home p { margin-bottom: 15px; color: #ddd;}
-    .login-prompt-home form { display: flex; justify-content: center; gap: 10px; }
-    .login-prompt-home input[type="text"] { padding: 8px; border-radius: 3px; border: 1px solid #444; background-color: #333; color: #fff; }
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .auth-input {
+        padding: 12px;
+        border-radius: 5px;
+        border: 1px solid #444;
+        background-color: #333;
+        color: #fff;
+        font-size: 1em;
+    }
+    .auth-button {
+        padding: 12px 20px;
+        font-size: 1.1em;
+        border: none;
+    }
+    .auth-message {
+        margin-top: 15px;
+        color: #ffc107; /* Default color for messages / Standardfarbe für Nachrichten */
+        text-align: center;
+        min-height: 20px; /* Placeholder to prevent layout jumps / Platzhalter, damit das Layout nicht springt */
+    }
 </style>
 {% endblock %}
 
 {% block scripts %}
+{{ super() }} {# Wichtig, um Basis-Skripte wie CSRF zu laden #}
 <script>
-function loginOrRegisterHome() {
-    const username = document.getElementById('usernameInputHome').value.trim();
-    const csrfToken = document.getElementById('csrfTokenHome').value;
-    const messageDiv = document.getElementById('loginMessageHome');
-    messageDiv.textContent = '';
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginFormHome');
+    const loginMessageDiv = document.getElementById('loginMessageHome');
 
-    if (!username) {
-        messageDiv.textContent = 'Please enter a name.';
-        messageDiv.style.color = '#dc3545'; // Danger color
-        return;
-    }
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsernameInputHome').value.trim();
+            const csrfToken = document.getElementById('loginCsrfTokenHome').value;
+            loginMessageDiv.textContent = '';
 
-    // Try to log in first
-    fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrfToken
-        },
-        body: `username=${encodeURIComponent(username)}&csrf_token=${encodeURIComponent(csrfToken)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            messageDiv.textContent = 'Login successful! Redirecting...';
-            messageDiv.style.color = '#28a745'; // Success color
-            window.location.href = data.redirect;
-        } else {
-            // If login fails (e.g., user not found), try to register
-            fetch('/register', {
+            if (!username) {
+                loginMessageDiv.textContent = 'Please enter your name.';
+                loginMessageDiv.style.color = '#dc3545';
+                return;
+            }
+
+            fetch('{{ url_for("login") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -248,36 +249,74 @@ function loginOrRegisterHome() {
                 body: `username=${encodeURIComponent(username)}&csrf_token=${encodeURIComponent(csrfToken)}`
             })
             .then(response => response.json())
-            .then(regData => {
-                if (regData.success) {
-                    messageDiv.textContent = 'Registration successful! Redirecting...';
-                    messageDiv.style.color = '#28a745'; // Success color
-                    window.location.href = regData.redirect;
+            .then(data => {
+                if (data.success) {
+                    loginMessageDiv.textContent = 'Login successful! Redirecting...';
+                    loginMessageDiv.style.color = '#28a745';
+                    window.location.href = data.redirect;
                 } else {
-                    messageDiv.textContent = regData.message || 'Login/Registration failed.';
-                    messageDiv.style.color = '#dc3545'; // Danger color
+                    loginMessageDiv.textContent = data.message || 'Login failed.';
+                    loginMessageDiv.style.color = '#dc3545';
                 }
             })
             .catch(error => {
-                console.error('Registration Error:', error);
-                messageDiv.textContent = 'An error occurred during registration.';
-                messageDiv.style.color = '#dc3545';
+                console.error('Login fetch error:', error);
+                loginMessageDiv.textContent = 'An error occurred. Please try again.';
+                loginMessageDiv.style.color = '#dc3545';
             });
-        }
-    })
-    .catch(error => {
-        console.error('Login Error:', error);
-        messageDiv.textContent = 'An error occurred during login.';
-        messageDiv.style.color = '#dc3545';
-    });
-}
-// Ensure this script runs after the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-    const loginForm = document.getElementById('loginFormHome');
-    if(loginForm){
-        loginForm.addEventListener('submit', function(event){
+        });
+    }
+
+    const registerForm = document.getElementById('registerFormHome');
+    const registerMessageDiv = document.getElementById('registerMessageHome');
+
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(event) {
             event.preventDefault();
-            loginOrRegisterHome();
+            const username = document.getElementById('registerUsernameInputHome').value.trim();
+            const csrfToken = document.getElementById('registerCsrfTokenHome').value;
+            registerMessageDiv.textContent = '';
+
+            if (!username) {
+                registerMessageDiv.textContent = 'Please choose a name.';
+                registerMessageDiv.style.color = '#dc3545';
+                return;
+            }
+            if (username.length < 3) {
+                registerMessageDiv.textContent = 'Name must be at least 3 characters long.';
+                registerMessageDiv.style.color = '#dc3545';
+                return;
+            }
+            if (!/^[a-zA-Z0-9 ]+$/.test(username)) {
+                registerMessageDiv.textContent = 'Name can only contain letters, numbers, and spaces.';
+                registerMessageDiv.style.color = '#dc3545';
+                return;
+            }
+
+            fetch('{{ url_for("register") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `username=${encodeURIComponent(username)}&csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    registerMessageDiv.textContent = 'Registration successful! Redirecting...';
+                    registerMessageDiv.style.color = '#28a745';
+                    window.location.href = data.redirect;
+                } else {
+                    registerMessageDiv.textContent = data.message || 'Registration failed.';
+                    registerMessageDiv.style.color = '#dc3545';
+                }
+            })
+            .catch(error => {
+                console.error('Registration fetch error:', error);
+                registerMessageDiv.textContent = 'An error occurred during registration. Please try again.';
+                registerMessageDiv.style.color = '#dc3545';
+            });
         });
     }
 });

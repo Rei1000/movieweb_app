@@ -1,81 +1,272 @@
 {% extends 'base.html' %}
 
-{% block title %}Über MovieWeb - MovieWeb App{% endblock %}
+{% block title %}About MovieWeb - Your Movie Guide{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container mt-4 mb-5">
     <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card bg-dark text-light">
-                <div class="card-body">
-                    <h1 class="card-title mb-4">Über MovieWeb / About MovieWeb</h1>
+        <div class="col-lg-10 offset-lg-1">
+            <div class="card bg-dark text-light shadow-lg">
+                <div class="card-body p-lg-5">
                     
-                    <h2 class="h4 mb-3">Projektbeschreibung / Project Description</h2>
-                    <p>
-                        MovieWeb ist eine Webanwendung zur Verwaltung von Filmlisten. 
-                        Benutzer können ihre Lieblingsfilme speichern, bewerten und kommentieren.
-                        MovieWeb is a web application for managing movie lists. 
-                        Users can save, rate, and comment on their favorite movies.
+                    <!-- English Version / Englische Version -->
+                    <h1 class="card-title display-5 mb-4 text-center text-warning">Welcome to MovieWeb!</h1>
+                    
+                    <p class="lead text-center mb-5">
+                        MovieWeb is your personal command center for the fascinating world of movies. Discover new films, manage your favorites, share your opinions, and get inspired by our community and smart recommendations!
                     </p>
 
-                    <h2 class="h4 mb-3 mt-4">Funktionen / Features</h2>
-                    <ul>
-                        <li>
-                            Benutzerverwaltung / User Management
-                            <ul>
-                                <li>Registrierung und Login / Registration and login</li>
-                                <li>Persönliche Filmlisten / Personal movie lists</li>
-                            </ul>
-                        </li>
-                        <li>
-                            Filmverwaltung / Movie Management
-                            <ul>
-                                <li>Filme hinzufügen und bearbeiten / Add and edit movies</li>
-                                <li>Bewertungssystem / Rating system</li>
-                                <li>Kommentarfunktion / Comment feature</li>
-                            </ul>
-                        </li>
-                        <li>
-                            API-Integration / API Integration
-                            <ul>
-                                <li>OMDb API für Filminformationen / OMDb API for movie information</li>
-                            </ul>
-                        </li>
-                    </ul>
+                    <hr class="my-5 border-secondary">
 
-                    <h2 class="h4 mb-3 mt-4">Technologien / Technologies</h2>
-                    <ul>
-                        <li>Backend / Backend
-                            <ul>
-                                <li>Python / Flask</li>
-                                <li>SQLAlchemy / SQLite</li>
-                                <li>RESTful API</li>
-                            </ul>
-                        </li>
-                        <li>Frontend / Frontend
-                            <ul>
-                                <li>HTML5 / CSS3</li>
-                                <li>JavaScript</li>
-                                <li>Bootstrap 5</li>
-                            </ul>
-                        </li>
-                    </ul>
-
-                    <h2 class="h4 mb-3 mt-4">Entwicklung / Development</h2>
+                    <h2 class="h3 mb-4 text-primary">What is MovieWeb?</h2>
                     <p>
-                        MovieWeb wurde mit Fokus auf Benutzerfreundlichkeit und Robustheit entwickelt.
-                        Die Anwendung verwendet moderne Webtechnologien und folgt Best Practices
-                        für Sicherheit und Performance.
-                        MovieWeb was developed with a focus on user-friendliness and robustness.
-                        The application uses modern web technologies and follows best practices
-                        for security and performance.
+                        You love movies but sometimes lose track or are searching for the next gem for your movie night? MovieWeb helps you with that! You can:
+                    </p>
+                    <ul>
+                        <li>Search for movies and find detailed information about them.</li>
+                        <li>Create and maintain your very own personal movie lists.</li>
+                        <li>Rate movies and express your opinion with comments.</li>
+                        <li>Receive new movie suggestions from an intelligent AI.</li>
+                        <li>See which movies are popular in the community.</li>
+                    </ul>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Getting Started: It's This Easy</h2>
+                    
+                    <h3 class="h5 mt-4 text-info">1. Register (No Stress)</h3>
+                    <p>
+                        To use MovieWeb to its full extent, registration is necessary – but don't worry, we make it easy for you! All you need is a username. No email confirmation, no password marathon.
+                    </p>
+                    <ol>
+                        <li>Go to the <a href="{{ url_for('home') }}" class="text-warning">Homepage</a>.</li>
+                        <li>In the "Register" section, enter your desired name and click "Register".</li>
+                        <li>That's it! You are now part of the MovieWeb community.</li>
+                    </ol>
+
+                    <h3 class="h5 mt-4 text-info">2. Login</h3>
+                    <p>
+                        If you are already registered, you can log in anytime using the "Login" section on the <a href="{{ url_for('home') }}" class="text-warning">Homepage</a> with your username.
                     </p>
 
-                    <h2 class="h4 mb-3 mt-4">API-Dokumentation / API Documentation</h2>
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Discovering Movies: Your Journey Begins</h2>
+
+                    <h3 class="h5 mt-4 text-info">The Homepage: The Latest and Greatest</h3>
                     <p>
-                        Eine ausführliche API-Dokumentation finden Sie unter:
-                        You can find detailed API documentation at:
-                        <a href="{{ url_for('api_docs') }}" class="text-light">API Docs</a>
+                        On our <a href="{{ url_for('home') }}" class="text-warning">Homepage</a>, you'll find an overview of the "Community Top 10" – movies that are particularly popular among our users. A great starting point for inspiration!
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Smart Movie Search (AI-Powered)</h3>
+                    <p>
+                        Once logged in and on your personal movie page (click your name in the top right, then "My Movies"), you'll find the "Add Movie to My List" feature. This is where our AI comes into play:
+                    </p>
+                    <ul>
+                        <li>Enter a movie title (even if incomplete or misspelled).</li>
+                        <li>Describe a movie in words (e.g., "movie about a great white shark at the beach").</li>
+                        <li>The AI will try to identify the movie you're looking for. Then click "Load Movie" to fetch details via OMDb.</li>
+                    </ul>
+                    
+                    <h3 class="h5 mt-4 text-info">AI Movie Recommendations</h3>
+                    <p>
+                        On every movie detail page, you'll find a button to have our AI generate 5 similar movie suggestions for you. Perfect for discovering new favorites based on what you already like! The AI even remembers what it recently recommended to you to avoid repetitions.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Your Personal Movie Oasis</h2>
+                    <p>As a logged-in user, you can add movies to your personal list, rate them, and make notes.</p>
+
+                    <h3 class="h5 mt-4 text-info">Adding a Movie to Your List</h3>
+                    <p>
+                        After finding a movie via the AI search and loading its details, you can add it to your list with your personal rating (0-5 stars) and optionally other details. You can also add an existing movie from its detail page directly to your list.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Rating Movies</h3>
+                    <p>
+                        Give each movie on your list a rating from 0 to 5 stars. This rating is only visible to you and helps you keep track. You can change your rating at any time.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Removing Movies from Your List</h3>
+                    <p>
+                        Don't like a movie anymore or it wasn't the right fit? No problem! You can remove movies from your personal list at any time. The movie will remain in the global database if others are using it.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Movie Details & Community Interaction</h2>
+
+                    <h3 class="h5 mt-4 text-info">Comprehensive Movie Information</h3>
+                    <p>
+                        Thanks to OMDb integration, we show you a wealth of details for each movie: plot, director, release year, actors, poster, runtime, awards, genre, and more.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Comments: Share Your Opinion!</h3>
+                    <p>
+                        On every movie detail page, you can (as a logged-in user) leave comments and read comments from other users. Share your thoughts, discuss movies, and discover new perspectives!
+                    </p>
+                    
+                    <h3 class="h5 mt-4 text-info">Community Rating</h3>
+                     <p>
+                        In addition to your personal rating, movies also display an average community rating, derived from OMDb ratings and the average global ratings in our app.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">For Developers: The MovieWeb API</h2>
+                    <p>
+                        MovieWeb also offers a <a href="{{ url_for('api_docs') }}" class="text-warning">programmatic interface (API)</a> to access movie and user data in JSON format. You can find the documentation for this via the link.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Outlook: What the Future Holds</h2>
+                    <p>
+                        MovieWeb is constantly evolving! Here are some of the exciting features and improvements we are considering for the future:
+                    </p>
+                    <ul>
+                        <li><strong>Enhanced User Accounts:</strong> Optional password protection for user accounts for increased security.</li>
+                        <li><strong>Advanced AI Search:</strong> More sophisticated AI search capabilities, allowing you to search by actors, genre, mood, or even combine criteria.</li>
+                        <li><strong>Streaming Service Links:</strong> Direct links to popular streaming services (like Amazon Prime, Netflix, etc.) where you can watch or rent the movies.</li>
+                        <li><strong>MovieWeb Fun - The Game:</strong> An interactive movie quiz where you have to guess the movie title and release year based on briefly shown scenes. Challenge your movie knowledge!</li>
+                        <li><strong>Improved Social Features:</strong> Options to add friends, share movie lists or recommendations, and see what your friends are watching.</li>
+                        <li><strong>Personalized Dashboards:</strong> A more tailored homepage experience, with personalized movie feeds based on your ratings and viewing history.</li>
+                        <li><strong>Watchlist & Notifications:</strong> A dedicated watchlist for movies you plan to see, and notifications for new releases or when movies on your list become available on streaming platforms.</li>
+                    </ul>
+                    <p>Stay tuned for more exciting updates as we continue to make MovieWeb the ultimate companion for movie lovers!</p>
+                    
+                    <hr class="my-5 border-secondary" style="border-width: 3px !important;">
+                    <!-- German Version / Deutsche Version -->
+
+                    <h1 class="card-title display-5 mb-4 text-center text-warning mt-5">Willkommen bei MovieWeb!</h1>
+                    
+                    <p class="lead text-center mb-5">
+                        MovieWeb ist deine persönliche Kommandozentrale für die faszinierende Welt der Filme. Entdecke neue Streifen, verwalte deine Favoriten, teile deine Meinung und lass dich von unserer Community und intelligenten Empfehlungen inspirieren!
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Was ist MovieWeb?</h2>
+                    <p>
+                        Du liebst Filme, verlierst aber manchmal den Überblick oder suchst nach der nächsten Perle für deinen Filmabend? MovieWeb hilft dir dabei! Du kannst:
+                    </p>
+                    <ul>
+                        <li>Filme suchen und detaillierte Informationen dazu finden.</li>
+                        <li>Deine ganz persönlichen Filmlisten erstellen und pflegen.</li>
+                        <li>Filme bewerten und deine Meinung mit Kommentaren kundtun.</li>
+                        <li>Von einer intelligenten KI neue Filmvorschläge erhalten.</li>
+                        <li>Sehen, welche Filme in der Community beliebt sind.</li>
+                    </ul>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Erste Schritte: So einfach geht's</h2>
+                    
+                    <h3 class="h5 mt-4 text-info">1. Registrieren (ganz ohne Stress)</h3>
+                    <p>
+                        Um MovieWeb in vollem Umfang nutzen zu können, ist eine Registrierung nötig – aber keine Sorge, wir machen es dir einfach! Du brauchst nur einen Benutzernamen. Keine E-Mail-Bestätigung, kein Passwort-Merathon.
+                    </p>
+                    <ol>
+                        <li>Gehe zur <a href="{{ url_for('home') }}" class="text-warning">Startseite</a>.</li>
+                        <li>Im Bereich "Register" gib deinen Wunschnamen ein und klicke auf "Register".</li>
+                        <li>Das war's schon! Du bist jetzt Teil der MovieWeb-Community.</li>
+                    </ol>
+
+                    <h3 class="h5 mt-4 text-info">2. Einloggen</h3>
+                    <p>
+                        Wenn du schon registriert bist, kannst du dich jederzeit über den "Login"-Bereich auf der <a href="{{ url_for('home') }}" class="text-warning">Startseite</a> mit deinem Benutzernamen anmelden.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Filme entdecken: Deine Reise beginnt</h2>
+
+                    <h3 class="h5 mt-4 text-info">Die Startseite: Das Neueste und Beste</h3>
+                    <p>
+                        Auf unserer <a href="{{ url_for('home') }}" class="text-warning">Startseite</a> findest du direkt eine Übersicht der "Community Top 10" – Filme, die bei unseren Nutzern besonders beliebt sind. Ein guter Startpunkt für Inspiration!
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Intelligente Filmsuche (KI-gestützt)</h3>
+                    <p>
+                        Bist du eingeloggt und auf deiner persönlichen Filmseite (klicke auf deinen Namen oben rechts, dann "My Movies"), findest du die Funktion "Film zu meiner Liste hinzufügen". Hier kommt unsere KI ins Spiel:
+                    </p>
+                    <ul>
+                        <li>Gib einen Filmtitel ein (auch unvollständig oder mit Tippfehlern).</li>
+                        <li>Beschreibe einen Film mit Worten (z.B. "Film über einen weißen Hai am Strand").</li>
+                        <li>Die KI versucht, den gesuchten Film zu identifizieren. Klicke dann auf "Film laden", um Details via OMDb abzurufen.</li>
+                    </ul>
+                    
+                    <h3 class="h5 mt-4 text-info">KI-Filmempfehlungen</h3>
+                    <p>
+                        Auf jeder Filmdetailseite findest du einen Button, um dir von unserer KI 5 ähnliche Filmvorschläge generieren zu lassen. Perfekt, um neue Favoriten basierend auf dem zu entdecken, was dir bereits gefällt! Die KI merkt sich sogar, was sie dir kürzlich empfohlen hat, um Wiederholungen zu vermeiden.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Deine persönliche Filmoase</h2>
+                    <p>Als eingeloggter Benutzer kannst du Filme zu deiner persönlichen Liste hinzufügen, sie bewerten und Notizen machen.</p>
+
+                    <h3 class="h5 mt-4 text-info">Film zu deiner Liste hinzufügen</h3>
+                    <p>
+                        Nachdem du einen Film über die KI-Suche gefunden und dessen Details geladen hast, kannst du ihn mit deinem persönlichen Rating (0-5 Sterne) und optional weiteren Details zu deiner Liste hinzufügen. Du kannst auch direkt von einer Filmdetailseite einen bereits in der Datenbank existierenden Film zu deiner Liste hinzufügen.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Filme bewerten</h3>
+                    <p>
+                        Gib jedem Film in deiner Liste eine Bewertung von 0 bis 5 Sternen. Diese Bewertung ist nur für dich sichtbar und hilft dir, den Überblick zu behalten. Du kannst deine Bewertung jederzeit ändern.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Filme von deiner Liste entfernen</h3>
+                    <p>
+                        Ein Film gefällt dir nicht mehr oder war doch nicht das Richtige? Kein Problem! Du kannst Filme jederzeit von deiner persönlichen Liste entfernen. Der Film bleibt global in der Datenbank erhalten, falls andere ihn nutzen.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Filmdetails & Community-Austausch</h2>
+
+                    <h3 class="h5 mt-4 text-info">Umfassende Filminformationen</h3>
+                    <p>
+                        Für jeden Film zeigen wir dir dank der OMDb-Integration eine Fülle von Details: Handlung, Regisseur, Erscheinungsjahr, Schauspieler, Poster, Laufzeit, Auszeichnungen, Genre und mehr.
+                    </p>
+
+                    <h3 class="h5 mt-4 text-info">Kommentare: Teile deine Meinung!</h3>
+                    <p>
+                        Auf jeder Filmdetailseite kannst du (als eingeloggter Benutzer) Kommentare hinterlassen und die Kommentare anderer Nutzer lesen. Teile deine Gedanken, diskutiere über Filme und entdecke neue Perspektiven!
+                    </p>
+                    
+                    <h3 class="h5 mt-4 text-info">Community-Bewertung</h3>
+                     <p>
+                        Neben deiner persönlichen Bewertung siehst du bei Filmen auch eine durchschnittliche Community-Bewertung, die sich aus den OMDb-Ratings und den durchschnittlichen globalen Bewertungen in unserer App zusammensetzt.
+                    </p>
+
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Für Entwickler: Die MovieWeb API</h2>
+                    <p>
+                        MovieWeb bietet auch eine <a href="{{ url_for('api_docs') }}" class="text-warning">programmatische Schnittstelle (API)</a>, um auf Film- und Benutzerdaten im JSON-Format zuzugreifen. Die Dokumentation hierzu findest du unter dem Link.
+                    </p>
+                    
+                    <hr class="my-5 border-secondary">
+
+                    <h2 class="h3 mb-4 text-primary">Ausblick: Was die Zukunft bringt</h2>
+                    <p>
+                        MovieWeb entwickelt sich ständig weiter! Hier sind einige der spannenden Funktionen und Verbesserungen, die wir für die Zukunft in Betracht ziehen:
+                    </p>
+                    <ul>
+                        <li><strong>Erweiterte Benutzerkonten:</strong> Optionale Passwortsicherung für Benutzerkonten für erhöhte Sicherheit.</li>
+                        <li><strong>Fortschrittliche KI-Suche:</strong> Ausgefeiltere KI-Suchfunktionen, die es ermöglichen, nach Schauspielern, Genre, Stimmung zu suchen oder Kriterien zu kombinieren.</li>
+                        <li><strong>Streaming-Dienst-Links:</strong> Direkte Links zu beliebten Streaming-Diensten (wie Amazon Prime, Netflix usw.), über die Filme angesehen oder ausgeliehen werden können.</li>
+                        <li><strong>MovieWeb Fun - Das Spiel:</strong> Ein interaktives Filmquiz, bei dem Filmtitel und Erscheinungsjahr anhand kurz eingeblendeter Szenen erraten werden müssen. Fordere dein Filmwissen heraus!</li>
+                        <li><strong>Verbesserte soziale Funktionen:</strong> Möglichkeiten, Freunde hinzuzufügen, Filmlisten oder Empfehlungen zu teilen und zu sehen, was deine Freunde anschauen.</li>
+                        <li><strong>Personalisierte Dashboards:</strong> Ein stärker zugeschnittenes Homepage-Erlebnis mit personalisierten Film-Feeds basierend auf deinen Bewertungen und deinem Sehverlauf.</li>
+                        <li><strong>Watchlist & Benachrichtigungen:</strong> Eine spezielle Watchlist für Filme, die du noch sehen möchtest, und Benachrichtigungen über Neuerscheinungen oder wenn Filme auf deiner Liste auf Streaming-Plattformen verfügbar werden.</li>
+                    </ul>
+                    <p>Bleib dran für weitere spannende Updates, während wir MovieWeb weiter zum ultimativen Begleiter für Filmliebhaber ausbauen!</p>
+
+                    <p class="text-center mt-5">
+                        Viel Spaß beim Entdecken und Verwalten deiner Filme mit MovieWeb!
                     </p>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import movie_card %}
 
 {% block title %}Movies for {{ user.name }} - MovieWeb App{% endblock %}
 
@@ -8,34 +9,34 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem; /* Etwas Abstand nach unten */
+        margin-bottom: 1.5rem; /* Some bottom margin / Etwas Abstand nach unten */
     }
     .page-header h1 {
-        margin-bottom: 0; /* Entfernt den Standard-Margin der h1, um die vertikale Zentrierung zu verbessern */
+        margin-bottom: 0; /* Remove default h1 margin for better vertical alignment / Entfernt den Standard-Margin der h1, um die vertikale Zentrierung zu verbessern */
     }
 
     .movie-grid {
         display: grid; 
-        grid-template-columns: repeat(auto-fit, 320px); /* Geändert auf feste 320px Spaltenbreite */
+        grid-template-columns: repeat(auto-fit, 320px); /* Changed to fixed 320px column width / Geändert auf feste 320px Spaltenbreite */
         gap: 1.5rem;
-        padding: 1rem; /* Default padding */
+        padding: 1rem; /* Default padding / Standard-Padding */
     }
     @media (min-width: 576px) { .movie-grid { padding: 1.5rem; } }
-    /* Bei 992px und darüber bleibt das Padding bei 1.5rem, um mehr Platz für Karten zu lassen */
+    /* At 992px and above, padding remains at 1.5rem to allow more space for cards / Bei 992px und darüber bleibt das Padding bei 1.5rem, um mehr Platz für Karten zu lassen */
     /* @media (min-width: 992px) { .movie-grid { padding: 2rem; } } */ 
-    @media (min-width: 992px) { .movie-grid { padding: 1.5rem; } } /* Explizit für 992px+ */
+    @media (min-width: 992px) { .movie-grid { padding: 1.5rem; } } /* Explicitly for 992px+ / Explizit für 992px+ */
 
-    .movie-card { /* Umbenannt von movie-card-link, da es kein Link mehr ist */
+    .movie-card { /* Renamed from movie-card-link as it's no longer just a link / Umbenannt von movie-card-link, da es kein reiner Link mehr ist */
         display: block;
-        width: 320px;  /* Feste Breite für die Karte gesetzt */
-        background-color: #1a1a1a; /* Dunkler Hintergrund statt grün */
-        border: 1px solid #333; /* Dunklerer Rand */
+        width: 320px;  /* Fixed card width / Feste Breite für die Karte gesetzt */
+        background-color: #1a1a1a; /* Darker background instead of green / Dunkler Hintergrund statt grün */
+        border: 1px solid #333; /* Darker border / Dunklerer Rand */
         border-radius: 8px;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
-        overflow: hidden; /* Wichtig, falls Poster abgerundete Ecken bekommen soll oder überläuft */
-        display: flex; /* Hinzugefügt für Flexbox-Layout */
-        flex-direction: column; /* Elemente untereinander anordnen */
-        height: 100%; /* Damit die Karte den Grid-Bereich füllt, falls Zeilen feste Höhe haben */
+        overflow: hidden; /* Important if poster should have rounded corners or overflows / Wichtig, falls Poster abgerundete Ecken bekommen soll oder überläuft */
+        display: flex; /* Added for Flexbox layout / Hinzugefügt für Flexbox-Layout */
+        flex-direction: column; /* Arrange items vertically / Elemente untereinander anordnen */
+        height: 100%; /* So card fills grid area if rows have fixed height / Damit die Karte den Grid-Bereich füllt, falls Zeilen feste Höhe haben */
     }
     .movie-card:hover {
         transform: scale(1.05) translateY(-5px);
@@ -43,35 +44,35 @@
     }
 
     .movie-poster {
-        display: block; /* Stellt sicher, dass es ein Block-Element ist */
-        width: 100%;    /* Volle Breite der .movie-card */
-        height: auto;   /* Höhe passt sich dem Seitenverhältnis an */
-        /* max-height: 300px; */ /* Optional, falls eine maximale Posterhöhe gewünscht ist */
-        object-fit: cover; /* Falls feste Höhe verwendet wird, wie das Bild skaliert werden soll */
-        border-top-left-radius: 7px; /* Abrundung passend zur Karte */
-        border-top-right-radius: 7px; /* Abrundung passend zur Karte */
+        display: block; /* Ensures it's a block element / Stellt sicher, dass es ein Block-Element ist */
+        width: 100%;    /* Full width of .movie-card / Volle Breite der .movie-card */
+        height: auto;   /* Height adjusts to aspect ratio / Höhe passt sich dem Seitenverhältnis an */
+        /* max-height: 300px; */ /* Optional, if a max poster height is desired / Optional, falls eine maximale Posterhöhe gewünscht ist */
+        object-fit: cover; /* If fixed height is used, how the image should scale / Falls feste Höhe verwendet wird, wie das Bild skaliert werden soll */
+        border-top-left-radius: 7px; /* Rounded to match card / Abrundung passend zur Karte */
+        border-top-right-radius: 7px; /* Rounded to match card / Abrundung passend zur Karte */
     }
     .placeholder-poster {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        min-height: 250px; /* Angepasste Mindesthöhe für Placeholder, anpassbar */
-        /* padding: 1rem; */ /* Entfernt, da der Text direkt angezeigt wird */
+        min-height: 250px; /* Adjusted min-height for placeholder, customizable / Angepasste Mindesthöhe für Placeholder, anpassbar */
+        /* padding: 1rem; */ /* Removed as text is displayed directly / Entfernt, da der Text direkt angezeigt wird */
         background: #2c2c2c;
         color: #ccc;
         text-align: center;
         font-size: 1rem;
-        border-top-left-radius: 7px; /* Abrundung passend zur Karte */
-        border-top-right-radius: 7px; /* Abrundung passend zur Karte */
-        border-bottom: 1px solid #333; /* Trennung zum (noch nicht existenten) Body */
+        border-top-left-radius: 7px; /* Rounded to match card / Abrundung passend zur Karte */
+        border-top-right-radius: 7px; /* Rounded to match card / Abrundung passend zur Karte */
+        border-bottom: 1px solid #333; /* Separation to (not yet existing) body / Trennung zum (noch nicht existenten) Body */
     }
 
     .movie-card-content {
         padding: 0.75rem;
-        margin-top: auto; /* Schiebt den Inhaltsblock nach unten */
-        background-color: #1a1a1a; /* Sicherstellen, dass es über dem Poster liegt, falls Poster absolute Positionierung hätte */
-        border-top: 1px solid #282828; /* Leichte Trennlinie zum Posterbereich */
+        margin-top: auto; /* Pushes content block to the bottom / Schiebt den Inhaltsblock nach unten */
+        background-color: #1a1a1a; /* Ensure it's above poster if poster had absolute positioning / Sicherstellen, dass es über dem Poster liegt, falls Poster absolute Positionierung hätte */
+        border-top: 1px solid #282828; /* Slight separation line from poster area / Leichte Trennlinie zum Posterbereich */
     }
 
     .movie-card-title {
@@ -81,7 +82,7 @@
         margin-bottom: 0.25rem;
         white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis; /* Titel mit ... kürzen wenn zu lang */
+        text-overflow: ellipsis; /* Shorten title with ... if too long / Titel mit ... kürzen wenn zu lang */
     }
 
     .movie-card-info {
@@ -91,17 +92,17 @@
     }
 
     .star-rating {
-        color: #f5c518; /* IMDb Gelb */
+        color: #f5c518; /* IMDb yellow / IMDb Gelb */
         margin-bottom: 0.5rem;
     }
 
     .movie-card-actions {
         display: flex;
-        flex-wrap: wrap; /* Buttons umbrechen lassen, falls nicht genug Platz */
-        gap: 0.5rem; /* Abstand zwischen Buttons */
+        flex-wrap: wrap; /* Allow buttons to wrap if not enough space / Buttons umbrechen lassen, falls nicht genug Platz */
+        gap: 0.5rem; /* Space between buttons / Abstand zwischen Buttons */
         margin-top: 0.75rem;
         padding-top: 0.75rem;
-        border-top: 1px solid #333; /* Trennlinie über den Buttons */
+        border-top: 1px solid #333; /* Separator line above buttons / Trennlinie über den Buttons */
     }
 
     .custom-button-small {
@@ -109,7 +110,6 @@
         font-size: 0.8em;
     }
 
-    /* Button und Alert Styles können bleiben, falls sie global gebraucht werden oder später wieder kommen */
     .custom-button {
         display: inline-block;
         padding: 8px 15px;
@@ -141,7 +141,7 @@
         margin-bottom: 20px;
         border: 1px solid transparent;
         border-radius: 4px;
-        background-color: #2a2a2a;
+        background-color: #2a2a2a; /* Dark background for alert / Dunkler Hintergrund für Alert */
         border-color: #333;
         color: #fff;
     }
@@ -159,48 +159,7 @@
 {% if user_movie_relations %}
 <div class="movie-grid">
     {% for relation in user_movie_relations %}
-    {% set movie = relation.movie %}
-    <div class="movie-card">
-        <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit;">
-            {% if movie.poster_url and movie.poster_url != url_for('static', filename='img/no_poster.png') %}
-                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}">
-            {% else %}
-                <div class="placeholder-poster">
-                    {{ movie.title }}
-                </div>
-            {% endif %}
-        </a>
-        <div class="movie-card-content">
-            <a href="{{ url_for('movie_page', movie_id=movie.id) }}" style="text-decoration: none; color: inherit;">
-                <h5 class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</h5>
-                <p class="movie-card-info">{{ movie.year }}</p>
-                {% if movie.director %}
-                    <p class="movie-card-info">{{ movie.director }}</p>
-                {% endif %}
-            </a>
-            
-            {% if relation.user_rating is not none %}
-            <div class="star-rating" title="Your Rating: {{ relation.user_rating }}/5" style="font-size: 0.9em; margin-bottom: 0.25rem;">
-                <strong>My Rating: </strong>
-                {% set ur = relation.user_rating %}
-                {% set ur_full = ur|int %}
-                {% set ur_half = 1 if (ur - ur_full) >= 0.5 else 0 %}
-                {% set ur_empty = 5 - ur_full - ur_half %}
-                {{ '★' * ur_full }}{% if ur_half %}½{% endif %}{{ '☆' * ur_empty }}
-            </div>
-            {% endif %}
-
-            {% if movie.community_rating is not none %}
-            <div class="star-rating" title="Community Rating: {{ movie.community_rating|round(1) }}/5 ({{ movie.community_rating_count }} votes)" style="font-size: 0.8em; color: #aaa;">
-                <strong>Community Avg: </strong>
-                {% set full_comm = movie.community_rating|int %}
-                {% set half_comm = 1 if (movie.community_rating - full_comm) >= 0.5 else 0 %}
-                {% set empty_comm = 5 - full_comm - half_comm %}
-                {{ '★' * full_comm }}{% if half_comm %}½{% endif %}{{ '☆' * empty_comm }} ({{movie.community_rating_count}})
-            </div>
-            {% endif %}
-        </div>
-    </div>
+    {{ movie_card(relation.movie, user_specific_relation=relation) }}
     {% endfor %}
 </div>
 {% else %}
@@ -209,11 +168,11 @@
 </div>
 {% endif %}
 
-{# Modal HTML entfernt #}
+{# Modal HTML removed / Modal HTML entfernt #}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Keine Modal-JS-Logik mehr hier
+// No modal JS logic here anymore / Keine Modal-JS-Logik mehr hier
 </script>
 {% endblock %}

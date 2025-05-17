@@ -23,14 +23,17 @@
         box-sizing: border-box;
     }
     .form-display-field {
-        background-color: #2a2a2a; /* Etwas anders für reine Anzeige */
-        min-height: 38px; /* Passend zu input padding */
-        line-height: 1.5; /* Für besseren Textfluss */
+        background-color: #2a2a2a;
+        min-height: 38px; 
+        line-height: 1.5;
     }
     .form-button {
         background-color: #007bff;
         color: white;
         cursor: pointer;
+        text-align: center; /* Ensure text is centered / Text zentrieren */
+        display: inline-block; /* Necessary for a-tags styled as buttons / Notwendig für <a>-Tags, die als Buttons gestylt sind */
+        text-decoration: none; /* For a-tags / Für <a>-Tags */
     }
     .form-button:hover {
         background-color: #0056b3;
@@ -55,6 +58,7 @@
         height: auto;
         border-radius: 4px;
         margin-top: 10px;
+        margin-bottom: 10px;
         border: 1px solid #444;
     }
     .rating-input-group {
@@ -73,24 +77,16 @@
     }
     .star-rating .star {
         cursor: pointer;
-        color: #444;
+        color: #444; /* Default star color / Standard Sternfarbe */
         padding: 0 2px;
         transition: color 0.2s;
     }
-    .star-rating .star:hover, .star-rating .star.filled { /* .filled Klasse für JS, wenn Stern ausgewählt */
-        color: #f5c518; 
+    .star-rating .star:hover, .star-rating .star.filled {
+        color: #f5c518; /* Gold for active/hovered star / Gold für aktiven/gehoverten Stern */
     }
-    .omdb-suggestion-text {
-        font-size: 0.9em; 
-        color: #aaa; 
-        margin-bottom: 10px;
-    }
-    .omdb-suggestion-text .stars {
-        color: #f5c518;
-        font-size: 1em;
-    }
-    .ai-message { /* Für Nachrichten von der KI oder über den Prozess */
+    .ai-message { 
         padding: 10px;
+        margin-top:15px; /* Ensure space from form / Abstand zum Formular sicherstellen */
         margin-bottom: 15px;
         border-radius: 4px;
         background-color: #333;
@@ -102,200 +98,196 @@
         border-color: #6a3a3a;
         color: #fcc;
     }
-    .ai-message.success {
-        background-color: #2a4a2a;
-        border-color: #3a6a3a;
-        color: #cfc;
+    .form-buttons-row {
+        display: flex;
+        gap: 10px; /* Space between buttons / Abstand zwischen Buttons */
+        margin-top: 20px;
+    }
+    .form-buttons-row .form-button {
+        flex-grow: 1; /* Make buttons share width / Buttons teilen sich die Breite */
+        width: 0; /* Allow flex-grow to work properly / Ermöglicht korrekte Funktion von flex-grow */
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="form-header" style="text-align: center; margin-bottom: 20px;">
-    <h1>Add Movie for {{ user.name }}</h1>
+<div style="max-width: 700px; margin: 20px auto;"> {# Centering container for the heading / Zentrierender Container für die Überschrift #}
+    <h1 style="text-align: center; margin-bottom: 20px;">Add New Movie to {{ user.name }}'s List</h1>
 </div>
 
-<!-- Phase 1: Formular für KI-Suche -->
-<form method="get" action="{{ url_for('add_movie', user_id=user.id) }}" class="movie-form" id="aiSearchForm">
-    <label for="user_search_input">Movie Title or Description:</label>
-    <input type="text" id="user_search_input" name="user_search_input" class="form-input" required
-           value="{{ user_search_input_value or '' }}">
-    
-    <button type="submit" class="form-button form-button-secondary">
-        Find Movie with AI
-    </button>
-</form>
-
-<!-- Anzeige der KI-Nachricht (Fehler oder Info) -->
-{% if ai_message %}
-<div class="ai-suggestion-section">
-    <div class="ai-message {% if not ai_suggested_title %}error{% else %}info{% endif %}">
-        {{ ai_message }}
-    </div>
+{# Initial search form for AI title interpretation / Initiales Suchformular für KI-Titelinterpretation #}
+{% if not hide_initial_search_form %}
+<div class="movie-form" id="aiSearchFormContainer">
+    <h3 style="margin-top:0; text-align:center;">1. Find Movie with AI</h3>
+    <p style="text-align:center; font-size:0.9em; color:#ccc; margin-bottom:15px;">Enter a movie title or description. Our AI will try to find the exact title.</p>
+    <form method="GET" action="{{ url_for('add_movie', user_id=user.id) }}">
+        <label for="user_search_input" style="display:block; margin-bottom:5px;">Movie Title or Description:</label>
+        <input type="text" id="user_search_input" name="user_search_input" class="form-input" value="{{ user_search_input_value }}" required>
+        <button type="submit" class="form-button form-button-secondary">Find Movie with AI</button>
+    </form>
+    {% if ai_message %}
+        <div class="ai-message {{ 'error' if 'could not identify' in ai_message else '' }}">
+            {{ ai_message }} {# Message is from app.py, already English only / Nachricht kommt von app.py, bereits nur Englisch #}
+        </div>
+    {% endif %}
 </div>
 {% endif %}
 
-<!-- Phase 2: Anzeige des KI-Vorschlags und Button für OMDb-Abruf -->
-{% if ai_suggested_title and not show_details_form %} {# Zeige dies nur, wenn KI einen Titel hat UND OMDb-Details noch nicht geladen sind #}
-<div class="ai-suggestion-section">
-    <label for="ai_suggested_title_display">AI Suggestion:</label>
-    <div id="ai_suggested_title_display" class="form-display-field">{{ ai_suggested_title }}</div>
 
-    <form method="get" action="{{ url_for('add_movie', user_id=user.id) }}" class="movie-form" id="omdbSearchForm" style="margin-top: 10px;">
+{# Button to load OMDb details for AI suggested title / Button, um OMDb-Details für den von der KI vorgeschlagenen Titel zu laden #}
+{% if ai_suggested_title and not show_details_form %}
+<div class="ai-suggestion-section">
+    <h3 style="text-align:center;">2. AI Suggestion</h3>
+    <p style="text-align:center;">AI suggested title: <strong style="color: #f5c518;">{{ ai_suggested_title }}</strong></p>
+    <p style="text-align:center; font-size:0.9em; color:#ccc;">Happy with this? Load its details from OMDb to proceed.</p>
+    <form method="GET" action="{{ url_for('add_movie', user_id=user.id) }}">
+        <input type="hidden" name="user_search_input" value="{{ user_search_input_value }}">
         <input type="hidden" name="title_for_omdb_search" value="{{ ai_suggested_title }}">
-        {# Behalte die ursprüngliche Benutzereingabe für den Fall, dass wir zurück müssen oder für Logging #}
-        <input type="hidden" name="user_search_input" value="{{ user_search_input_value or '' }}">
-        <button type="submit" class="form-button">
-            Load Details for "{{ ai_suggested_title }}"
-        </button>
+        <button type="submit" class="form-button">Load Movie Details from OMDb</button>
     </form>
 </div>
 {% endif %}
 
 
-<!-- Phase 3: Anzeige der OMDb-Details und Formular zum Hinzufügen (wenn show_details_form True ist) -->
+{# Form to display OMDb details and finally add the movie / Formular zum Anzeigen der OMDb-Details und zum finalen Hinzufügen des Films #}
 {% if show_details_form and omdb and omdb.Response == 'True' %}
-<div class="omdb-details-preview movie-form"> 
-    <h3>Details for: {{ omdb.Title }} ({{ omdb.Year }})</h3>
-    {% if omdb.Poster and omdb.Poster != 'N/A' %}
-        <img src="{{ omdb.Poster }}" alt="Poster for {{ omdb.Title }}">
-    {% else %}
-        <img src="{{ url_for('static', filename='img/no_poster.png') }}" alt="No poster available">
-    {% endif %}
-    <p><strong>Director:</strong> {{ omdb.Director or 'N/A' }}</p>
+<div class="omdb-details-preview movie-form">
+    <h3 style="text-align:center;">{{ "Review and Add" if movie_to_add_id_value else "Confirm and Add Movie" }}</h3>
     
+    <img src="{{ omdb.Poster if omdb.Poster and omdb.Poster != 'N/A' else url_for('static', filename='img/no_poster.png') }}" alt="Poster for {{ omdb.Title }}">
+    
+    <p><strong>Title:</strong> {{ omdb.Title }} ({{ omdb.Year }})</p>
+    <p><strong>Director:</strong> {{ omdb.Director or 'N/A' }}</p>
     {% if omdb_details %}
         <p><strong>Plot:</strong> {{ omdb_details.plot or 'N/A' }}</p>
         <p><strong>Runtime:</strong> {{ omdb_details.runtime or 'N/A' }}</p>
         <p><strong>Genre:</strong> {{ omdb_details.genre or 'N/A' }}</p>
         <p><strong>Actors:</strong> {{ omdb_details.actors or 'N/A' }}</p>
-        <p><strong>Language:</strong> {{ omdb_details.languages or 'N/A' }}</p>
-        <p><strong>Country:</strong> {{ omdb_details.country or 'N/A' }}</p>
-        <p><strong>Awards:</strong> {{ omdb_details.awards or 'N/A' }}</p>
     {% endif %}
 
-    <form method="post" action="{{ url_for('add_movie', user_id=user.id) }}">
+    <form method="POST" action="{{ url_for('add_movie', user_id=user.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        {# Wichtig: Der Titel hier muss der sein, den OMDb bestätigt hat, also omdb.Title #}
-        <input type="hidden" name="title_from_omdb" value="{{ omdb.Title }}"> 
-        <input type="hidden" name="director" value="{{ omdb.Director or '' }}">
-        <input type="hidden" name="year" value="{{ omdb.Year or '' }}">
-        <input type="hidden" name="poster_url" value="{{ omdb.Poster if omdb.Poster and omdb.Poster != 'N/A' else url_for('static', filename='img/no_poster.png') }}">
-        
-        {% if rating5 is not none %}
-        <input type="hidden" name="omdb_suggested_rating" value="{{ rating5 }}">
+        <input type="hidden" name="original_user_search_input" value="{{ user_search_input_value }}">
+        {% if source_movie_id_for_template %}
+        <input type="hidden" name="source_movie_id_for_template" value="{{ source_movie_id_for_template }}">
         {% endif %}
 
+        <input type="hidden" name="title_from_omdb" value="{{ omdb.Title }}">
+        <input type="hidden" name="director" value="{{ omdb.Director or '' }}">
+        <input type="hidden" name="year" value="{{ omdb.Year or '' }}">
+        <input type="hidden" name="poster_url" value="{{ omdb.Poster if omdb.Poster and omdb.Poster != 'N/A' else '' }}">
         <input type="hidden" name="plot" value="{{ omdb_details.plot or '' }}">
         <input type="hidden" name="runtime" value="{{ omdb_details.runtime or '' }}">
+        <input type="hidden" name="awards" value="{{ omdb_details.awards or '' }}">
+        <input type="hidden" name="languages" value="{{ omdb_details.languages or '' }}">
         <input type="hidden" name="genre" value="{{ omdb_details.genre or '' }}">
         <input type="hidden" name="actors" value="{{ omdb_details.actors or '' }}">
-        <input type="hidden" name="languages" value="{{ omdb_details.languages or '' }}">
+        <input type="hidden" name="writer" value="{{ omdb_details.writer or '' }}">
         <input type="hidden" name="country" value="{{ omdb_details.country or '' }}">
-        <input type="hidden" name="awards" value="{{ omdb_details.awards or '' }}">
         <input type="hidden" name="metascore" value="{{ omdb_details.metascore or '' }}">
         <input type="hidden" name="rated" value="{{ omdb_details.rated or '' }}">
         <input type="hidden" name="imdb_id" value="{{ omdb_details.imdb_id or '' }}">
-        {# Die ursprüngliche Nutzereingabe für den Fall, dass beim POST ein Fehler auftritt und wir dorthin zurückleiten #}
-        <input type="hidden" name="original_user_search_input" value="{{ user_search_input_value or '' }}">
-
+        {% if rating5 is not none %}
+            <input type="hidden" name="omdb_suggested_rating" value="{{ rating5 }}">
+        {% endif %}
 
         <div class="rating-input-group">
-            <label for="rating">Your Rating (click stars to set, 0-5):</label>
-            
-            <input type="number" id="rating" name="rating" class="form-input" min="0" max="5" step="0.5" 
-                   value="{{ rating5 if rating5 is not none else '' }}" 
-                   style="margin-bottom: 0; display: none;" {# Versteckt, da Sterne verwendet werden #}>
-            <div id="star-rating-interactive" class="star-rating"></div> 
-            <small>Leave blank or set to 0 if you don't want to rate it yet.</small>
+            <label for="rating">Your Rating (0-5, e.g., 3.5):</label>
+            <input type="number" step="0.5" min="0" max="5" id="rating" name="rating" class="form-input" value="{{ rating5 if rating5 is not none else '' }}" placeholder="Leave blank or set to 0 to not rate yet" style="display:none;">
+            <div id="star-rating-interactive" class="star-rating" style="text-align:center;"></div>
+            <small style="display:block; text-align:center; font-size:0.85em; color:#aaa;">Click stars to set. Leave blank or click to zero for no rating.</small>
         </div>
         
-        <button type="submit" class="form-button" style="margin-top: 20px;">
-            Add "{{ omdb.Title }}" to My List
-        </button>
+        <div class="form-buttons-row">
+            <button type="submit" class="form-button">Add "{{ omdb.Title }}" to My List</button>
+            {% if source_movie_id_for_template %}
+                <a href="{{ url_for('movie_page', movie_id=source_movie_id_for_template) }}" class="form-button form-button-secondary">
+                    Back to Recommendations
+                </a>
+            {% elif user %}
+                 <a href="{{ url_for('list_user_movies', user_id=user.id) }}" class="form-button form-button-secondary">
+                    Cancel
+                </a>
+            {% else %}
+                <a href="{{ url_for('home') }}" class="form-button form-button-secondary">
+                    Cancel
+                </a>
+            {% endif %}
+        </div>
     </form>
 </div>
-{% elif show_details_form and (not omdb or omdb.Response == 'False') %}
-    {# Dieser Block wird angezeigt, wenn show_details_form True ist, aber OMDb einen Fehler zurückgab oder keine Daten hat #}
-    {# Die ai_message aus app.py sollte hier bereits den OMDb-Fehler enthalten #}
-    {# Kein zusätzlicher Inhalt hier nötig, da die ai_message oben bereits angezeigt wird, falls vorhanden #}
+{% elif show_details_form and omdb and omdb.Response == 'False' %}
+<div class="movie-form"> {# Using movie-form for consistent styling / movie-form für einheitliches Styling verwenden #}
+    <h3 style="text-align:center; color: #ffc107;">Movie Not Found by OMDb</h3>
+    <div class="ai-message error"> {# Using ai-message error for styling / ai-message error für Styling verwenden #}
+        <p>OMDb could not find details for the title: <strong>"{{ title_for_omdb_search_value }}"</strong>.</p>
+        {% if omdb.Error %}
+            <p>OMDb Error: {{ omdb.Error }}</p>
+        {% endif %}
+        <p>You can try searching again with a different title or description.</p>
+    </div>
+    <a href="{{ url_for('add_movie', user_id=user.id, user_search_input=user_search_input_value) }}" class="form-button form-button-secondary" style="display:block; width:auto; max-width:250px; margin-left:auto; margin-right:auto;">
+       Try AI Search Again
+    </a>
+</div>
 {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-{{ super() }} {# Wichtig, um CSRF und andere Basis-Skripte einzubinden #}
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Stern-Rating-Logik für das Hinzufügen-Formular (Phase 3)
     const ratingInput = document.getElementById('rating');
     const starRatingContainer = document.getElementById('star-rating-interactive');
 
     if (ratingInput && starRatingContainer) {
-        // Initialisiere Sterne basierend auf dem Wert des Rating-Inputs
-        let currentRating = parseFloat(ratingInput.value) || 0; // Default 0 if empty or invalid
+        let currentRating = parseFloat(ratingInput.value) || 0;
 
         function renderStars(rating) {
-            starRatingContainer.innerHTML = ''; // Sterne neu zeichnen
+            starRatingContainer.innerHTML = '';
             for (let i = 1; i <= 5; i++) {
                 const star = document.createElement('span');
                 star.classList.add('star');
                 star.dataset.value = i;
                 
                 if (rating >= i) {
-                    star.textContent = '★'; // Voller Stern
+                    star.textContent = '★'; 
                     star.classList.add('filled');
                 } else if (rating >= i - 0.5) {
-                    star.textContent = '½'; // Halber Stern
+                    star.textContent = '½';
                     star.classList.add('filled'); 
                 } else {
-                    star.textContent = '☆'; // Leerer Stern
+                    star.textContent = '☆';
                 }
                 starRatingContainer.appendChild(star);
             }
         }
 
-        renderStars(currentRating); // Initiales Rendern
+        renderStars(currentRating);
 
         starRatingContainer.addEventListener('click', function (e) {
             if (e.target.classList.contains('star')) {
-                const clickedValue = parseFloat(e.target.dataset.value);
-                const currentStarText = e.target.textContent;
+                const clickedStarValue = parseFloat(e.target.dataset.value);
                 let newRating;
 
-                if (currentStarText === '★') { // Wenn ein voller Stern geklickt wird
-                    if (clickedValue === currentRating) { // Und es der aktuelle Wert ist
-                        newRating = clickedValue - 0.5; // Auf halben Stern reduzieren
-                    } else {
-                        newRating = clickedValue;
-                    }
-                } else if (currentStarText === '½') { // Wenn ein halber Stern geklickt wird
-                     if (clickedValue - 0.5 === currentRating ) { // Und es der aktuelle Wert ist
-                        newRating = 0; // Stern entfernen / auf 0 setzen (oder clickedValue - 1 für ganz leer)
-                                       // hier ist es vielleicht besser, auf den vorherigen ganzen Stern zu gehen
-                                       // oder ganz zu entfernen. Fürs erste: 0.
-                                       // Besser: newRating = clickedValue - 1; (wenn es 0.5 war, wird es -0.5 -> 0 im Input)
-                        newRating = clickedValue -1;
-                        if (newRating < 0) newRating = 0;
-
-                     } else {
-                        newRating = clickedValue - 0.5; // Setze auf diesen halben Stern
-                     }
-
-                } else { // Leerer Stern ('☆')
-                    newRating = clickedValue; // Setze auf vollen Stern
+                // If the star clicked is already the current full star rating, reduce to half.
+                // If it's the current half star, set to previous full star (or 0 if it was 0.5).
+                // Otherwise, set to full star value of the clicked star.
+                if (currentRating === clickedStarValue) { // Clicked on the current full star
+                    newRating = clickedStarValue - 0.5;
+                } else if (currentRating === clickedStarValue - 0.5) { // Clicked on the current half star
+                     newRating = clickedStarValue - 1; // Go to previous full star (or 0 if it was 0.5)
+                } else { // Clicked on an unselected star or a star below current rating
+                    newRating = clickedStarValue;
                 }
                 
-                // Korrektur, falls der Klick auf einen halben Stern war, während ein voller Stern gesetzt ist
-                // Beispiel: 3 Sterne sind gesetzt (★ ★ ★ ☆ ☆), Klick auf den 3. Stern soll zu 2.5 wechseln
-                // Diese Logik ist komplexer und braucht evtl. eine Überarbeitung, je nach gewünschtem Verhalten.
-                // Die obige Logik sollte die meisten Fälle abdecken.
+                if (newRating < 0) newRating = 0; // Ensure rating doesn't go below 0
 
-                if (newRating === currentRating && newRating === clickedValue) { // Erneuter Klick auf denselben vollen Stern
-                     newRating = clickedValue - 0.5;
-                } else if (newRating === currentRating && (clickedValue - 0.5) === currentRating ) { // Erneuter Klick auf denselben halben Stern
-                    newRating = clickedValue -1;
-                     if (newRating < 0) newRating = 0;
+                // Special case: if rating is 0.5 and user clicks the first star (which is 0.5 / '½')
+                // and wants to set it to 0
+                if (currentRating === 0.5 && clickedStarValue === 1 && newRating === 0){
+                    // This is fine, newRating is already 0
                 }
 
 

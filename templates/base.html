@@ -4,7 +4,7 @@ Hauptlayout der MovieWeb App.
 Main layout for the MovieWeb application.
 -->
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -112,6 +112,7 @@ Main layout for the MovieWeb application.
                     {% else %}
                         <li><a href="{{ url_for('home') }}">Home</a></li>
                         {# Hier könnten später dedizierte Login/Register Seiten verlinkt werden, falls gewünscht #}
+                        {# Dedicated login/register pages could be linked here later if desired #}
                     {% endif %}
                     <li><a href="{{ url_for('api_docs') }}">API</a></li>
                     <li><a href="{{ url_for('about') }}">About</a></li>

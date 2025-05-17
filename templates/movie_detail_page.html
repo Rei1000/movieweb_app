@@ -8,33 +8,33 @@
         max-width: 1200px;
         margin: 20px auto;
         padding: 20px;
-        background-color: #1c1c1c; /* Etwas hellerer Hintergrund als base */
+        background-color: #1c1c1c; /* Slightly lighter background than base / Etwas hellerer Hintergrund als base */
         border-radius: 8px;
     }
     .detail-grid {
         display: grid;
-        grid-template-columns: 300px 1fr; /* Feste Breite für Poster, Rest flexibel */
+        grid-template-columns: 300px 1fr; /* Fixed width for poster, rest flexible / Feste Breite für Poster, Rest flexibel */
         gap: 30px;
     }
     @media (max-width: 768px) {
         .detail-grid {
-            grid-template-columns: 1fr; /* Einspaltig auf kleinen Bildschirmen */
+            grid-template-columns: 1fr; /* Single column on small screens / Einspaltig auf kleinen Bildschirmen */
         }
         .movie-poster-large {
-            max-width: 80%; /* Poster nicht zu breit auf Mobile */
+            max-width: 80%; /* Poster not too wide on mobile / Poster nicht zu breit auf Mobile */
             margin-bottom: 20px;
         }
     }
     .movie-poster-large img, .movie-poster-large .placeholder-poster-large {
         width: 100%;
         height: auto;
-        max-height: 600px; /* Maximale Höhe für das Poster */
+        max-height: 600px; /* Max height for the poster / Maximale Höhe für das Poster */
         object-fit: contain;
         border-radius: 8px;
         border: 1px solid #333;
     }
     .placeholder-poster-large {
-        height: 450px; /* Feste Höhe für den Placeholder, passend zur Spaltenbreite */
+        height: 450px; /* Fixed height for placeholder, matching column width / Feste Höhe für den Placeholder, passend zur Spaltenbreite */
         background: linear-gradient(45deg, #2c2c2c, #3a3a3a);
         display: flex;
         align-items: center;
@@ -61,7 +61,7 @@
     }
     .movie-info .info-item strong {
         color: #fff;
-        min-width: 120px; /* Für bessere Ausrichtung der Info-Labels */
+        min-width: 120px; /* For better alignment of info labels / Für bessere Ausrichtung der Info-Labels */
         display: inline-block;
     }
     .user-rating-display {
@@ -69,7 +69,7 @@
         margin: 15px 0;
     }
     .user-rating-display .stars {
-        color: #ffc107; /* Goldene Sterne */
+        color: #ffc107; /* Golden stars / Goldene Sterne */
     }
     .section {
         margin-top: 30px;
@@ -79,7 +79,7 @@
     .section h2 {
         margin-bottom: 15px;
     }
-    /* Kommentare (vereinfacht, kann von movies.html inspiriert sein) */
+    /* Comments (simplified, can be inspired by movies.html) / Kommentare (vereinfacht, kann von movies.html inspiriert sein) */
     .comment-item {
         background: #252525;
         padding: 15px;
@@ -108,15 +108,15 @@
         padding: 8px 12px;
         font-size: 0.9em;
     }
-    /* CSS für KI-Empfehlungslinks */
+    /* CSS for AI recommendation links / CSS für KI-Empfehlungslinks */
     #ai-recommendations-result ul li a, 
     #ai-recommendations-result .recommendation-title a {
-        color: #ffffff !important; /* Weiß */
+        color: #ffffff !important; /* White / Weiß */
         text-decoration: none;
     }
     #ai-recommendations-result ul li a:hover,
     #ai-recommendations-result .recommendation-title a:hover {
-        color: #cccccc !important; /* Helleres Grau beim Hovern */
+        color: #cccccc !important; /* Lighter grey on hover / Helleres Grau beim Hovern */
         text-decoration: underline;
     }
 </style>
@@ -124,13 +124,11 @@
 
 {% block content %}
 <div class="detail-container" {% if g_is_user_logged_in %}data-current-user-id="{{ g_current_user.id }}"{% endif %}>
-    {# Erster "Back to Overview" Button #}
+    {# First "Back to Overview" Button / Erster "Zurück zur Übersicht" Button #}
     {% if g_is_user_logged_in %}
-        {# <a href="{{ url_for('list_user_movies', user_id=g_current_user.id) }}" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to My Movie List</a> #}
-        <button type="button" class="custom-button" style="margin-bottom: 20px;" onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';">&laquo; Back to My Movie List</button>
+        <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to My Movie List</button>
     {% else %}
-        {# <a href="{{ url_for('home') }}" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to Home</a> #}
-        <button type="button" class="custom-button" style="margin-bottom: 20px;" onclick="window.location.href='{{ url_for('home') }}';">&laquo; Back to Home</button>
+        <button onclick="window.location.href='{{ url_for('home') }}';" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to Home</button>
     {% endif %}
     <div class="detail-grid">
         <div class="movie-poster-large">
@@ -146,7 +144,7 @@
 
             <p><strong>Director:</strong> {{ movie.director or 'N/A' }}</p>
             
-            {# --- Start Block für Rating-Anzeige und Buttons --- #}
+            {# --- Start Block for Rating Display and Buttons / Start Block für Bewertungsanzeige und Buttons --- #}
             <div class="ratings-and-actions-block" style="margin-bottom: 20px;">
                 <div class="user-rating-display" style="margin-bottom: 5px;">
                     <strong>Community Rating:</strong> 
@@ -191,7 +189,7 @@
                                 <button type="submit" class="custom-button custom-button-danger">Remove from My List</button>
                             </form>
                         {% else %}
-                            {# Nur 'Add to My List' anzeigen, wenn nicht in der Liste #}
+                            {# Only show 'Add to My List' if not in list / Nur 'Zu meiner Liste hinzufügen' anzeigen, wenn nicht in der Liste #}
                             <form method="POST" action="{{ url_for('add_movie_to_list', movie_id=movie.id) }}" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="custom-button">Add to My List</button>
@@ -200,7 +198,7 @@
                     </div>
                 {% endif %}
             </div>
-            {# --- Ende Block für Rating-Anzeige und Buttons --- #}
+            {# --- End Block for Rating Display and Buttons / Ende Block für Bewertungsanzeige und Buttons --- #}
 
             <h3>Movie Details</h3>
             <p><span class="info-item"><strong>Plot:</strong></span> {{ movie.plot or 'Plot not available.' }}</p>
@@ -208,16 +206,16 @@
             <div class="info-item"><strong>Genre:</strong> {{ movie.genre or 'N/A' }}</div>
             <div class="info-item"><strong>Actors:</strong> {{ movie.actors or 'N/A' }}</div>
             <div class="info-item"><strong>Writer(s):</strong> {{ movie.writer or 'N/A' }}</div>
-            <div class="info-item"><strong>Language(s):</strong> {{ movie.languages or 'N/A' }}</div>
+            <div class="info-item"><strong>Language(s):</strong> {{ movie.language or 'N/A' }}</div> {# movie.language in models, not movie.languages #}
             <div class="info-item"><strong>Country:</strong> {{ movie.country or 'N/A' }}</div>
             <div class="info-item"><strong>Awards:</strong> {{ movie.awards or 'N/A' }}</div>
             {# <div class="info-item"><strong>Metascore:</strong> {{ movie.metascore or 'N/A' }}</div> #}
-            {# <div class="info-item"><strong>Rated (Age):</strong> {{ movie.rated or 'N/A' }}</div> #}
+            {# <div class="info-item"><strong>Rated (Age): / Altersfreigabe:</strong> {{ movie.rated_omdb or 'N/A' }}</div> #} {# movie.rated_omdb in models #}
             {# <div class="info-item"><strong>IMDb ID:</strong> {{ movie.imdb_id or 'N/A' }}</div> #}
         </div>
     </div>
 
-    {# --- NEUE POSITION FÜR AI-EMPFEHLUNGEN --- #}
+    {# --- NEW POSITION FOR AI RECOMMENDATIONS / NEUE POSITION FÜR KI-EMPFEHLUNGEN --- #}
     <div class="section ai-recommendations-section" style="margin-top: 25px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #333;">
         <h2><i class="fa fa-magic" style="margin-right: 8px;"></i>AI Powered Recommendations</h2>
         <p style="margin-bottom: 12px;">Let our AI suggest 5 similar films based on plot, genre, pacing, intensity, and tone.</p>
@@ -227,7 +225,7 @@
         <div id="ai-recommendations-result" style="margin-top: 15px;"></div>
         <div id="ai-selected-movie-details" style="margin-top: 15px; padding: 15px; background-color: #252525; border-radius: 5px; display: none; border: 1px solid #383838;"></div>
     </div>
-    {# --- ENDE NEUE POSITION --- #}
+    {# --- END NEW POSITION / ENDE NEUE POSITION --- #}
 
     <div class="section comments-section">
         <h2>Comments</h2>
@@ -238,7 +236,7 @@
                         <p><strong>{{ comment.user.name if comment.user else 'Anonymous' }}:</strong></p>
                         <p>{{ comment.text }}</p>
                         <small>{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'No date' }}</small>
-                        {# Hier könnte die Like-Funktion integriert werden #}
+                        {# Like functionality could be integrated here / Hier könnte die Like-Funktion integriert werden #}
                         {# <p><small>{{ comment.likes_count }} Likes</small> <button>Like</button></p> #}
                     </div>
                 {% endfor %}
@@ -247,33 +245,27 @@
             {% endif %}
         </div>
         
-        {% if user %} {# Nur eingeloggte User können kommentieren #}
+        {% if g_is_user_logged_in %} {# Only logged-in users can comment / Nur eingeloggte Benutzer können kommentieren #}
         <div class="review-form simple-form" style="margin-top:20px;">
             <h4>Write a Comment</h4>
-            <form id="commentFormPage" method="POST" action="{{ url_for('add_movie_comment_page', movie_id=movie.id) }}"> {# Neue Route für Kommentar von Detailseite #}
+            <form id="commentForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <textarea name="text" rows="3" required placeholder="Your comment..."></textarea>
-                <button type="submit" class="custom-button">Submit Comment</button>
+                <textarea name="comment_text" id="comment_text" placeholder="Write your comment here... / Schreibe deinen Kommentar hier..." required></textarea>
+                <button type="submit" class="custom-button custom-button-small">Post Comment</button>
             </form>
+            <div id="commentMessage" style="margin-top:10px; color: #ffc107;"></div>
         </div>
         {% else %}
-            <div style="margin-top:20px;">
-                <p>Please log in to write a comment or add this movie to your list.</p>
-                <button class="custom-button" onclick="document.getElementById('usernameInputHome') ? document.getElementById('usernameInputHome').focus() : document.querySelector('.app-header .app-nav a[href*=\'/login\']') ? document.querySelector('.app-header .app-nav a[href*=\'/login\']').click() : alert('Login option not readily available. Please use main navigation.'); return false;">
-                    Log In / Register
-                </button>
-            </div>
+            <p style="margin-top:20px;">You need to be <a href="{{ url_for('home', _anchor='login-section-home') }}" style="color:#ffc107;">logged in</a> to post a comment. / Du musst <a href="{{ url_for('home', _anchor='login-section-home') }}" style="color:#ffc107;">angemeldet sein</a>, um einen Kommentar zu schreiben.</p>
         {% endif %}
     </div>
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #333;">
-        {# Zweiter "Back to Overview" Button #}
+        {# Second "Back to Overview" Button / Zweiter "Zurück zur Übersicht" Button #}
         {% if g_is_user_logged_in %}
-            {# <a href="{{ url_for('list_user_movies', user_id=g_current_user.id) }}" class="custom-button">&laquo; Back to My Movie List</a> #}
-            <button type="button" class="custom-button" onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';">&laquo; Back to My Movie List</button>
+            <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';" class="custom-button">&laquo; Back to My Movie List</button>
         {% else %}
-            {# <a href="{{ url_for('home') }}" class="custom-button">&laquo; Back to Home</a> #}
-            <button type="button" class="custom-button" onclick="window.location.href='{{ url_for('home') }}';">&laquo; Back to Home</button>
+            <button onclick="window.location.href='{{ url_for('home') }}';" class="custom-button">&laquo; Back to Home</button>
         {% endif %}
     </div>
 
@@ -281,194 +273,187 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }} {# Important to load base scripts like CSRF handling / Wichtig, um Basis-Skripte wie CSRF zu laden #}
 <script>
-// Die Funktion goBack() wird nicht mehr benötigt, da die Links direkt gesetzt werden.
-// function goBack() {
-//   window.history.back();
-// }
-
 document.addEventListener('DOMContentLoaded', function() {
-    const fetchAiButton = document.getElementById('fetch-ai-recommendations');
-    const recommendationsResultDiv = document.getElementById('ai-recommendations-result');
+    // AI Recommendations Logic / Logik für KI-Empfehlungen
+    const fetchButton = document.getElementById('fetch-ai-recommendations');
+    const resultDiv = document.getElementById('ai-recommendations-result');
     const selectedMovieDetailsDiv = document.getElementById('ai-selected-movie-details');
-    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
-    const currentMovieId = document.body.dataset.currentMovieId;
+    const currentMovieId = document.body.getAttribute('data-current-movie-id');
+    const currentUserId = document.querySelector('.detail-container').getAttribute('data-current-user-id');
 
-    let aiRecommendedMoviesData = {}; // Store OMDb data for recommended movies
-
-    if (fetchAiButton && currentMovieId) { // Ensure currentMovieId is available
-        fetchAiButton.addEventListener('click', async function() {
-            if (!csrfToken) {
-                console.error('CSRF token not found. Cannot send AI request.');
-                recommendationsResultDiv.innerHTML = '<p style="color: red;">Error: CSRF token missing. Please refresh page.</p>';
-                return;
-            }
-            recommendationsResultDiv.innerHTML = '<p>Searching for recommendations... <i class="fa fa-spinner fa-spin"></i></p>';
+    if (fetchButton && currentMovieId) {
+        fetchButton.addEventListener('click', function() {
+            resultDiv.innerHTML = '<p><i class="fa fa-spinner fa-spin"></i> Fetching recommendations...</p>';
             selectedMovieDetailsDiv.style.display = 'none';
             selectedMovieDetailsDiv.innerHTML = '';
-            aiRecommendedMoviesData = {}; // Clear previous data
 
-            try {
-                const response = await fetch(`/movie/${currentMovieId}/ai_recommendations`);
-                const data = await response.json();
+            fetch(`/movie/${currentMovieId}/ai_recommendations`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                        return;
+                    }
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        let html = '<h5>AI Suggested Titles:</h5><ul>';
+                        data.recommendations.forEach(rec => {
+                            html += `<li><a href="#" class="ai-recommendation-link" data-title="${rec.title}" data-year="${rec.year || ''}">${rec.title} ${rec.year ? '(' + rec.year + ')' : ''}</a></li>`;
+                        });
+                        html += '</ul>';
+                        resultDiv.innerHTML = html;
+                        addRecommendationLinkListeners();
+                    } else if (data.message) { 
+                        resultDiv.innerHTML = `<p>${data.message}</p>`;
+                    } else {
+                        resultDiv.innerHTML = '<p>No recommendations found or an unknown issue occurred.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching AI recommendations:', error);
+                    resultDiv.innerHTML = `<p style="color: red;">Could not fetch AI recommendations: ${error.message}. Please try again later.</p>`;
+                });
+        });
+    }
 
-                if (!data.success) {
-                    recommendationsResultDiv.innerHTML = `<p style="color: red;">Error: ${data.message || data.error || 'Unknown error from server.'}</p>`;
+    function addRecommendationLinkListeners() {
+        document.querySelectorAll('.ai-recommendation-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const title = this.dataset.title;
+                const year = this.dataset.year;
+                fetchAndDisplayMovieData(title, year);
+            });
+        });
+    }
+
+    function fetchAndDisplayMovieData(title, year) {
+        selectedMovieDetailsDiv.style.display = 'block';
+        selectedMovieDetailsDiv.innerHTML = `<p><i class="fa fa-spinner fa-spin"></i> Loading details for ${title}...</p>`;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Step 1: Fetch from OMDb Proxy
+        fetch(`/api/omdb_proxy?title=${encodeURIComponent(title)}${year ? '&year=' + encodeURIComponent(year) : ''}`)
+            .then(response => response.json())
+            .then(omdbData => {
+                if (omdbData.Response !== 'True' || !omdbData.imdbID) {
+                    selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not retrieve details for "${title}" from OMDb. ${omdbData.Error || 'Unknown OMDb error.'}</p>`;
                     return;
                 }
 
-                if (data.recommendations && data.recommendations.length > 0) {
-                    let html = '<p><strong>Recommended Movies:</strong></p><ul>';
-                    data.recommendations.forEach(title => {
-                        const safeTitle = String(title).replace(/"/g, '&quot;');
-                        if (typeof title === 'string' && (title.toLowerCase().includes("error") || title.toLowerCase().includes("api key") || title.toLowerCase().includes("not configured"))) {
-                            html += `<li><span style="color: #ffcc00;">${safeTitle} (Could not process this suggestion)</span></li>`;
-                        } else {
-                            html += `<li><a href="#" class="ai-recommended-movie" data-title="${safeTitle}">${safeTitle}</a></li>`;
-                        }
-                    });
-                    html += '</ul>';
-                    recommendationsResultDiv.innerHTML = html;
+                // Step 2: Check or Create movie in local DB using OMDb data
+                fetch('{{ url_for("api.check_or_create_movie_by_imdb") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(omdbData) // Send full OMDb data
+                })
+                .then(response => response.json())
+                .then(localDbData => {
+                    if (!localDbData.success || !localDbData.movie_id) {
+                        selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Error processing movie with local database: ${localDbData.message || 'Unknown error.'}</p>`;
+                        return;
+                    }
 
-                    document.querySelectorAll('.ai-recommended-movie').forEach(link => {
-                        link.addEventListener('click', async function(event) {
-                            event.preventDefault();
-                            const movieTitle = this.dataset.title;
-                            selectedMovieDetailsDiv.style.display = 'block';
-                            selectedMovieDetailsDiv.innerHTML = `<p>Loading details for ${movieTitle}... <i class="fa fa-spinner fa-spin"></i></p>`;
-                            
-                            try {
-                                const omdbResponse = await fetch(`/api/omdb_proxy?title=${encodeURIComponent(movieTitle)}`);
-                                if (!omdbResponse.ok) {
-                                    const errorText = await omdbResponse.text(); 
-                                    throw new Error(`OMDb proxy request failed with status ${omdbResponse.status}: ${errorText}`);
-                                }
-                                const omdbData = await omdbResponse.json();
-
-                                if (omdbData && omdbData.Response === 'True' && omdbData.imdbID) {
-                                    aiRecommendedMoviesData[omdbData.imdbID] = omdbData; // Store data
-
-                                    let detailsHtml = `<h4>${omdbData.Title} (${omdbData.Year || 'N/A'})</h4>`;
-                                    if (omdbData.Poster && omdbData.Poster !== 'N/A') {
-                                        detailsHtml += `<img src="${omdbData.Poster}" alt="Poster" style="max-width: 100px; float: left; margin-right: 10px; border-radius: 4px;">`;
-                                    }
-                                    detailsHtml += `<p><strong>Director:</strong> ${omdbData.Director || 'N/A'}</p>`;
-                                    detailsHtml += `<p><strong>Plot:</strong> ${omdbData.Plot || 'N/A'}</p>`;
-                                    
-                                    detailsHtml += `<button class="custom-button custom-button-small check-or-create-ai-movie-btn" 
-                                                         data-imdbid="${omdbData.imdbID}">
-                                                         View Details / Add to Database
-                                                    </button>`;
-                                    detailsHtml += '<div style="clear:both;"></div>';
-                                    selectedMovieDetailsDiv.innerHTML = detailsHtml;
-
-                                    document.querySelectorAll('.check-or-create-ai-movie-btn').forEach(button => {
-                                        button.addEventListener('click', handleCheckOrCreateAiMovie);
-                                    });
-                                } else {
-                                    selectedMovieDetailsDiv.innerHTML = `<p style="color: orange;">Could not fetch details for ${movieTitle} from OMDb. ${omdbData.Error || ''}</p>`;
-                                }
-                            } catch (err) {
-                                console.error('Error fetching OMDb details:', err);
-                                selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Error loading details for ${movieTitle}. ${err.message || ''}</p>`;
-                            }
-                        });
-                    });
-                } else {
-                    recommendationsResultDiv.innerHTML = '<p>No recommendations found.</p>';
-                }
-            } catch (error) {
-                console.error('Error fetching AI recommendations:', error);
-                let errorMsg = 'Could not fetch AI recommendations. Please try again later.';
-                if (error.message && error.message.includes('Failed to fetch')) {
-                    errorMsg = 'Network error or server unreachable. Please check your connection and try again.';
-                }
-                recommendationsResultDiv.innerHTML = `<p style="color: red;">${errorMsg}</p>`;
-            }
-        });
-    } else if (!currentMovieId && fetchAiButton) {
-        // Fallback oder Hinweis, falls die Movie-ID nicht geladen werden konnte, aber der Button da ist.
-        console.warn('AI recommendations button present, but currentMovieId not found in body.dataset.');
+                    // Step 3: Display details and provide actions
+                    const local_movie_id = localDbData.movie_id;
+                    const movie_page_url = `{{ url_for('movie_page', movie_id=0) }}`.replace('0', local_movie_id);
+                    
+                    let detailsHtml = `<h5 style="margin-bottom: 10px; font-size: 1.1em;">${omdbData.Title} (${omdbData.Year || 'N/A'})</h5>`;
+                    
+                    detailsHtml += `<div style="display:flex; gap:15px;">`;
+                    if (omdbData.Poster && omdbData.Poster !== 'N/A') {
+                        detailsHtml += `<img src="${omdbData.Poster}" alt="Poster for ${omdbData.Title}" style="max-width:100px; height:auto; border-radius:4px;">`;
+                    }
+                    detailsHtml += `<div>`;
+                    detailsHtml += `<p style="font-size:0.9em; margin-bottom:5px;">${omdbData.Plot ? omdbData.Plot.substring(0, 150) + '...' : 'Plot not available.'}</p>`;
+                    
+                    if (currentUserId) { 
+                        detailsHtml += `<a href="${movie_page_url}" class="custom-button custom-button-small" style="margin-top: 5px;">View Movie Details</a>`;
+                    } else {
+                         detailsHtml += `<p style="font-size:0.9em; margin-bottom: 5px;">Log in to add this movie to your list.</p>`;
+                         detailsHtml += `<a href="${movie_page_url}" class="custom-button custom-button-small" style="display: inline-block; margin-top: 8px;">View Movie Details</a>`;
+                    }
+                    detailsHtml += `</div></div>`;
+                    selectedMovieDetailsDiv.innerHTML = detailsHtml;
+                })
+                .catch(error => {
+                    console.error('Error checking/creating movie in local DB:', error);
+                    selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not process movie with local database: ${error.message}</p>`;
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching from OMDb Proxy:', error);
+                selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not fetch details from OMDb: ${error.message}</p>`;
+            });
     }
 
-    async function handleCheckOrCreateAiMovie(event) {
-        const button = event.target;
-        const imdbId = button.dataset.imdbid;
+    // Comment Submission Logic / Logik für das Einreichen von Kommentaren
+    const commentForm = document.getElementById('commentForm');
+    const commentMessageDiv = document.getElementById('commentMessage');
+    const commentsListDiv = document.getElementById('commentsList');
 
-        if (!csrfToken) {
-            console.error('CSRF token not found. Cannot send check/create movie request.');
-            // Hier könnte man dem User eine Meldung anzeigen
-            const errorSpan = document.createElement('span');
-            errorSpan.style.color = 'red';
-            errorSpan.style.marginLeft = '10px';
-            errorSpan.textContent = 'Error: CSRF token missing. Please refresh.';
-            if (button.parentNode) { button.parentNode.insertBefore(errorSpan, button.nextSibling); }
-            setTimeout(() => { if(errorSpan.parentNode) errorSpan.remove(); }, 7000);
-            return;
-        }
+    if (commentForm && currentMovieId) {
+        commentForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const commentText = document.getElementById('comment_text').value.trim();
+            const csrfToken = this.querySelector('input[name="csrf_token"]').value;
+            commentMessageDiv.textContent = '';
 
-        if (!imdbId) {
-            console.error("Button is missing imdbid dataset attribute.");
-            return;
-        }
+            if (!commentText) {
+                commentMessageDiv.textContent = 'Comment cannot be empty. / Kommentar darf nicht leer sein.';
+                commentMessageDiv.style.color = '#dc3545';
+                return;
+            }
 
-        const movieDataForRequest = aiRecommendedMoviesData[imdbId];
-
-        if (!movieDataForRequest) {
-            console.error(`No OMDb data found for imdbID: ${imdbId}`);
-            button.innerHTML = 'Error: Data missing';
-            return;
-        }
-
-        button.disabled = true;
-        button.innerHTML = 'Processing... <i class="fa fa-spinner fa-spin"></i>';
-        
-        try {
-            const response = await fetch("/api/check_or_create_movie_by_imdb", {
+            fetch(`/movie/${currentMovieId}/comment`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken 
+                    'X-CSRFToken': csrfToken
                 },
-                body: JSON.stringify(movieDataForRequest)
-            });
-
-            const result = await response.json();
-
-            if (result.success && result.movie_id) {
-                // Leite zum Add-Movie-Flow weiter, um Rating und Hinzufügen zur Liste zu ermöglichen
-                const currentUserId = fetchAiButton.closest('.detail-container').dataset.currentUserId; // Annahme: User-ID ist im Parent verfügbar
-                if (currentUserId) {
-                    window.location.href = `/users/${currentUserId}/add_movie?movie_to_add_id=${result.movie_id}`;
+                body: JSON.stringify({ comment_text: commentText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    commentMessageDiv.textContent = data.message; // Should be English only from app.py / Sollte nur Englisch sein von app.py
+                    commentMessageDiv.style.color = '#28a745';
+                    document.getElementById('comment_text').value = ''; // Clear textarea / Textarea leeren
+                    
+                    // Add new comment to the list (or reload comments) / Neuen Kommentar zur Liste hinzufügen (oder Kommentare neu laden)
+                    const newCommentHtml = `
+                        <div class="comment-item">
+                            <p><strong>${data.user_name || 'Anonymous'}:</strong></p>
+                            <p>${commentText}</p>
+                            <small>${data.created_at || 'Just now / Gerade eben'}</small>
+                        </div>
+                    `;
+                    const noCommentsMessage = commentsListDiv.querySelector('p');
+                    if (noCommentsMessage && noCommentsMessage.textContent.startsWith('No comments yet')) {
+                        commentsListDiv.innerHTML = newCommentHtml; // Replace "No comments" message / "Keine Kommentare"-Nachricht ersetzen
+                    } else {
+                        commentsListDiv.insertAdjacentHTML('afterbegin', newCommentHtml); // Add to top / Oben hinzufügen
+                    }
                 } else {
-                    // Fallback, falls User-ID nicht einfach ermittelbar ist (sollte nicht passieren für eingeloggte User)
-                    // Zeige zumindest die Detailseite des Films an und eine Meldung
-                    console.warn('User ID not found for add_movie redirection, falling back to movie_page.');
-                    window.location.href = `/movie/${result.movie_id}/page`;
-                    // Hier könnte man eine Flash-Nachricht serverseitig setzen oder clientseitig was anzeigen
+                    commentMessageDiv.textContent = data.message || 'Could not post comment. / Kommentar konnte nicht gepostet werden.';
+                    commentMessageDiv.style.color = '#dc3545';
                 }
-            } else {
-                button.innerHTML = 'View Details / Add to Database';
-                button.disabled = false;
-                const errorSpan = document.createElement('span');
-                errorSpan.style.color = 'red';
-                errorSpan.style.marginLeft = '10px';
-                errorSpan.textContent = `Error: ${result.message || 'Could not process movie.'}`;
-                if (button.parentNode) { button.parentNode.insertBefore(errorSpan, button.nextSibling); }
-                setTimeout(() => { if(errorSpan.parentNode) errorSpan.remove(); }, 7000);
-            }
-        } catch (err) {
-            console.error('Error in check_or_create_movie_by_imdb POST request:', err);
-            button.innerHTML = 'View Details / Add to Database';
-            button.disabled = false;
-            const errorSpan = document.createElement('span');
-            errorSpan.style.color = 'red';
-            errorSpan.style.marginLeft = '10px';
-            errorSpan.textContent = 'Request failed. Please try again.';
-            if (button.parentNode) { button.parentNode.insertBefore(errorSpan, button.nextSibling); }
-            setTimeout(() => { if(errorSpan.parentNode) errorSpan.remove(); }, 7000);
-        }
+            })
+            .catch(error => {
+                console.error('Error posting comment:', error);
+                commentMessageDiv.textContent = 'An error occurred. Please try again. / Ein Fehler ist aufgetreten. Bitte erneut versuchen.';
+                commentMessageDiv.style.color = '#dc3545';
+            });
+        });
     }
 });
 </script>

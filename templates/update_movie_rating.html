@@ -9,7 +9,7 @@ Page for editing a user's own rating for a movie.
 
 {% block styles %}
 <style>
-    .movie-form-container { /* Neuer Container für Zentrierung und Styling */
+    .movie-form-container { /* New container for centering and styling / Neuer Container für Zentrierung und Styling */
         max-width: 700px;
         margin: 40px auto;
         padding: 25px;
@@ -29,7 +29,7 @@ Page for editing a user's own rating for a movie.
         margin-bottom: 20px;
     }
 
-    .movie-details-preview { /* Bereich für Filmdetails */
+    .movie-details-preview { /* Movie details preview area / Bereich für Filmdetails-Vorschau */
         display: flex;
         gap: 20px;
         padding: 15px;
@@ -39,7 +39,7 @@ Page for editing a user's own rating for a movie.
         margin-bottom: 25px;
     }
     .movie-details-preview img {
-        width: 100px; /* Kleinere Postergröße */
+        width: 100px; /* Smaller poster size / Kleinere Postergröße */
         height: auto;
         object-fit: cover;
         border-radius: 4px;
@@ -69,10 +69,10 @@ Page for editing a user's own rating for a movie.
         color: #ddd;
     }
 
-    /* CSS für interaktive Sterne (detailliert) */
+    /* CSS for interactive stars (detailed) / CSS für interaktive Sterne (detailliert) */
     .interactive-stars {
         display: inline-block;
-        font-size: 2.2em; /* Etwas größere Sterne */
+        font-size: 2.2em; /* Slightly larger stars / Etwas größere Sterne */
         color: #ccc; 
         margin-bottom: 20px;
     }
@@ -80,41 +80,41 @@ Page for editing a user's own rating for a movie.
         cursor: pointer;
         padding: 0 0.1em;
         transition: color 0.1s ease-in-out;
-        display: inline-block; /* Wichtig für korrekte Icon-Darstellung */
+        display: inline-block; /* Important for correct icon display / Wichtig für korrekte Icon-Darstellung */
     }
-    .interactive-stars .star .fa { /* Ziel das Icon direkt */
-         color: #444; /* Dunklere leere Sterne */
+    .interactive-stars .star .fa { /* Target the icon directly / Icon direkt ansprechen */
+         color: #444; /* Darker empty stars / Dunklere leere Sterne */
          transition: color 0.1s ease-in-out, transform 0.1s ease-in-out;
     }
-    .interactive-stars .star:hover .fa, /* Allgemeiner Hover */
-    .interactive-stars .star.hovered .fa { /* Spezifischer JS-Hover */
-        color: #d4a017; /* Etwas gedämpfteres Gelb für Hover */
+    .interactive-stars .star:hover .fa, /* General hover / Allgemeiner Hover */
+    .interactive-stars .star.hovered .fa { /* Specific JS hover / Spezifischer JS-Hover */
+        color: #d4a017; /* Slightly muted yellow for hover / Etwas gedämpfteres Gelb für Hover */
         transform: scale(1.1);
     }
     .interactive-stars .star.filled .fa {
-        color: #f5c518; /* IMDb Gelb für gefüllte Sterne */
+        color: #f5c518; /* IMDb yellow for filled stars / IMDb Gelb für gefüllte Sterne */
     }
     .interactive-stars .star.half-filled .fa {
-        color: #f5c518; 
+        color: #f5c518; /* Also IMDb yellow for half, full icon used / Ebenfalls IMDb Gelb für halb, volles Icon verwendet */
     }
     
-    .form-actions { /* Container für Buttons */
+    .form-actions { /* Container for buttons / Container für Buttons */
         margin-top: 25px;
         display: flex;
         gap: 10px;
     }
     .form-actions .custom-button,
     .form-actions .custom-button-secondary {
-        flex-grow: 1; /* Buttons teilen sich den Platz */
+        flex-grow: 1; /* Buttons share space / Buttons teilen sich den Platz */
     }
     .form-input-hidden {
-        display: none !important; /* Sicherstellen, dass das numerische Input versteckt ist */
+        display: none !important; /* Ensure the numerical input is hidden / Sicherstellen, dass das numerische Input versteckt ist */
     }
     .current-rating-text {
         font-size: 0.9em;
         color: #aaa;
         margin-top: 5px;
-        display: block; /* Eigene Zeile */
+        display: block; /* Own line / Eigene Zeile */
     }
 </style>
 {% endblock %}
@@ -160,7 +160,7 @@ Page for editing a user's own rating for a movie.
 
         <div class="form-actions">
             <button type="submit" class="custom-button">Update Rating</button>
-            <button type="button" class="custom-button custom-button-secondary" onclick="window.location.href='{{ url_for('movie_page', movie_id=movie.id) }}';">Cancel</button>
+            <button type="button" class="custom-button custom-button-secondary" onclick="window.location.href='{{ url_for('movie_page', movie_id=movie.id) }};';">Cancel</button>
         </div>
     </form>
 
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!starWidget) return;
 
     const stars = Array.from(starWidget.querySelectorAll('.star'));
-    const ratingInput = document.getElementById('user_rating_value_input'); // Geänderte ID hier verwenden
+    const ratingInput = document.getElementById('user_rating_value_input'); // Use changed ID here / Geänderte ID hier verwenden
     const currentRatingText = document.getElementById('current-rating-text');
 
     let currentRating = parseFloat(ratingInput.value) || 0;
@@ -196,14 +196,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 icon.classList.add('fa-star');
                 star.classList.add('filled');
             } else if (ratingToRender >= starValue - 0.5) {
-                icon.classList.add('fa-star-half-o'); // FontAwesome Icon für halben Stern
+                icon.classList.add('fa-star-half-o'); // FontAwesome icon for half star / FontAwesome Icon für halben Stern
                 star.classList.add('half-filled');
             } else {
                 icon.classList.add('fa-star-o');
             }
         });
         if (currentRatingText) {
-            currentRatingText.textContent = `Current: ${ratingToRender > 0 ? ratingToRender + '/5 stars' : 'Not yet rated'}`;
+            // currentRatingText.textContent = `Current: ${ratingToRender > 0 ? ratingToRender + '/5 stars' : 'Not yet rated'}`;
+            currentRatingText.innerHTML = `Current: ${ratingToRender > 0 ? ratingToRender + '/5 stars' : 'Not yet rated'}`;
         }
     }
 
@@ -233,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const offsetX = event.clientX - rect.left;
             const starValue = parseInt(star.dataset.value);
             let hoverRating = starValue;
-            // Wenn Maus in der linken Hälfte des Sterns ist, halben Stern anzeigen
+            // If mouse in left half of star, show half star / Wenn Maus in der linken Hälfte des Sterns ist, halben Stern anzeigen
             if (offsetX < rect.width / 2) {
                 hoverRating -= 0.5;
             }
@@ -241,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         star.addEventListener('mouseleave', function() {
-            renderStars(currentRating); // Sterne auf den gespeicherten Wert zurücksetzen
+            renderStars(currentRating); // Reset stars to saved value / Sterne auf den gespeicherten Wert zurücksetzen
         });
 
         star.addEventListener('click', function(event) {

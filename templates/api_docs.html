@@ -1,100 +1,201 @@
 {% extends 'base.html' %}
 
-{% block title %}API Dokumentation - MovieWeb App{% endblock %}
+{% block title %}API Documentation - MovieWeb App{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="mb-4">API Dokumentation</h1>
+    <h1 class="mb-4">API Documentation</h1>
     
+    <!-- English Version / Englische Version -->
     <div class="card bg-dark text-light mb-4">
         <div class="card-body">
-            <h2 class="card-title h4">Übersicht / Overview</h2>
+            <h2 class="card-title h4">Overview</h2>
             <p>
-                Die MovieWeb API ermöglicht den Zugriff auf Benutzer- und Filmdaten im JSON-Format.
-                The MovieWeb API provides access to user and movie data in JSON format.
+                The MovieWeb API provides programmatic access to user and movie data in JSON format.
             </p>
             <p>
-                Basis-URL / Base URL: <code>{{ request.host_url }}api/</code>
+                Base URL: <code>{{ request.host_url }}api/</code>
+            </p>
+            <p>
+                All responses are in JSON format.
             </p>
         </div>
     </div>
 
     <div class="card bg-dark text-light mb-4">
         <div class="card-body">
-            <h2 class="card-title h4">Endpunkte / Endpoints</h2>
+            <h2 class="card-title h4">Authentication and CSRF Protection</h2>
+            
+            <h3 class="h5 mt-3">GET Requests</h3>
+            <p>
+                <code>GET</code> requests to <code>/api/...</code> endpoints that only retrieve data (e.g., <code>/api/movies</code>, <code>/api/users/1</code>) generally do not require special authentication or CSRF tokens. They can be called directly.
+            </p>
 
-            <h3 class="h5 mt-4">Benutzer / Users</h3>
+            <h3 class="h5 mt-4">POST/PUT/DELETE Requests (Data-Modifying Requests)</h3>
+            <p>
+                Data-modifying requests (like <code>POST</code>, <code>PUT</code>, <code>DELETE</code>) to the <code>/api/...</code> endpoints are secured by CSRF (Cross-Site Request Forgery) protection, as the application globally uses Flask-WTF for CSRF. This applies even if these endpoints expect and return JSON.
+            </p>
+            <p>
+                <strong>To test these endpoints (e.g., with Postman or curl), you need a valid CSRF token:</strong>
+            </p>
+            <ol>
+                <li>
+                    <strong>Obtain Session and CSRF Token:</strong>
+                    <p>
+                        First, send a <code>GET</code> request to an HTML-providing page of your web application (e.g., the homepage <code>{{ request.host_url.rstrip('/') }}</code>). This request establishes a session with the server (via a session cookie) and provides a CSRF token in the HTML body (often in a <code>&lt;meta name="csrf-token" content="..."&gt;</code> tag or a hidden form field).
+                    </p>
+                </li>
+                <li>
+                    <strong>Use CSRF Token in API Request:</strong>
+                    <p class="mb-1">
+                        Extract the CSRF token value from the response of the first step.
+                        For your data-modifying API request (e.g., <code>POST /api/users/1/movies</code>):
+                    </p>
+                    <ul>
+                        <li>Add an HTTP header: <code>X-CSRFToken: &lt;your_token_value&gt;</code></li>
+                        <li>If you are sending data in JSON format (common for <code>POST</code>-APIs), ensure the <code>Content-Type</code> header is set to <code>application/json</code>. The CSRF token will then be primarily validated via the <code>X-CSRFToken</code> header.</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>
+                <em>Note: The necessity and exact implementation of CSRF protection for API endpoints can vary. If an API is intended for purely external clients without a browser context, alternative authentication methods like API-Keys or Bearer-Token are often used, which can bypass CSRF issues. For the API endpoints documented here, we assume the global CSRF protection of the Flask application is in effect.</em>
+            </p>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Endpoints</h2>
+
+            <h3 class="h5 mt-4">Users</h3>
             <div class="table-responsive">
-                <table class="table table-dark">
-                    <thead>
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
                         <tr>
-                            <th>Methode / Method</th>
-                            <th>Endpunkt / Endpoint</th>
-                            <th>Beschreibung / Description</th>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Description / Beschreibung</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/users</code></td>
+                            <td><code>/users</code></td>
                             <td>
-                                Gibt eine Liste aller Benutzer zurück.
-                                Returns a list of all users.
+                                Returns a list of all users (ID, name, movie count).
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/users/{user_id}</code></td>
+                            <td><code>/users/{user_id}</code></td>
                             <td>
-                                Gibt Details eines bestimmten Benutzers zurück.
-                                Returns details of a specific user.
+                                Returns details of a specific user, including their movie list.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/users/{user_id}/movies</code></td>
+                            <td><code>/users/{user_id}/movies</code></td>
                             <td>
-                                Gibt alle Filme eines Benutzers zurück.
-                                Returns all movies of a user.
+                                Returns all movies (title, director, year, rating, poster) of a specific user.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/users/{user_id}/movies</code></td>
+                            <td>
+                                Adds a new movie to a user's favorites list. Expects a JSON body with movie information (see example request) and CSRF-Schutz.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}/rate</code></td>
+                            <td>
+                                Updates the personal rating for a specific movie in a user's list.
+                                <br><strong>Requires:</strong> JSON Body (e.g., <code>{"rating": 4.5}</code> oder <code>{"rating": null}</code> um Rating zu entfernen), <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>DELETE</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}</code></td>
+                            <td>
+                                Entfernt einen Film aus der Liste eines bestimmten Benutzers.
+                                <br><strong>Benötigt:</strong> <code>X-CSRFToken</code> Header.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <h3 class="h5 mt-4">Filme / Movies</h3>
+            <h3 class="h5 mt-4">Movies</h3>
             <div class="table-responsive">
-                <table class="table table-dark">
-                    <thead>
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
                         <tr>
-                            <th>Methode / Method</th>
-                            <th>Endpunkt / Endpoint</th>
-                            <th>Beschreibung / Description</th>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Description / Beschreibung</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/movies</code></td>
+                            <td><code>/movies</code></td>
                             <td>
-                                Gibt eine Liste aller Filme zurück.
-                                Returns a list of all movies.
+                                Returns a list of all movies in the database (ID, title, director, year, rating, poster).
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/movies/{movie_id}</code></td>
+                            <td><code>/movies/{movie_id}</code></td>
                             <td>
-                                Gibt Details eines bestimmten Films zurück.
-                                Returns details of a specific movie.
+                                Returns detailed information about a specific movie, including all movie details and comments.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
-                            <td><code>/api/movies/{movie_id}/comments</code></td>
+                            <td><code>/movies/{movie_id}/comments</code></td>
                             <td>
-                                Gibt alle Kommentare zu einem Film zurück.
-                                Returns all comments for a movie.
+                                Returns all comments for a specific movie.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/movies/{movie_id}/comments</code></td>
+                            <td>
+                                Fügt einen neuen Kommentar zu einem bestimmten Film hinzu. Benutzer muss eingeloggt sein (Session-basiert).
+                                <br><strong>Benötigt:</strong> Formulardaten (<code>text=&lt;kommentartext&gt;</code>), <code>X-CSRFToken</code> Header (wenn via AJAX von clientseitigem JS gesendet, das CSRF handhabt).
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/check_or_create_movie_by_imdb</code></td>
+                            <td>
+                                Checks if a movie with the given <code>imdbID</code> exists. If not, it's created globally. Expects a JSON body with OMDb-ähnlichen Filmdaten (mindestens <code>imdbID</code>) und CSRF-Schutz.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <h3 class="h5 mt-4">OMDb Proxy</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Description / Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/omdb_proxy?title=&lt;search_title&gt;&amp;year=&lt;year_optional&gt;</code></td>
+                            <td>
+                                Forwards a search request to the external OMDb-API. Returns the JSON response from OMDb.
+                                <br>Requires query parameters: <code>title</code> (mandatory), <code>year</code> (optional).
                             </td>
                         </tr>
                     </tbody>
@@ -105,117 +206,382 @@
 
     <div class="card bg-dark text-light mb-4">
         <div class="card-body">
-            <h2 class="card-title h4">Beispielantworten / Example Responses</h2>
+            <h2 class="card-title h4">Example Requests with curl</h2>
+            
+            <h3 class="h5 mt-3">Get All Users</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users"</code></pre>
 
-            <h3 class="h5 mt-4">Benutzerliste / User List</h3>
-            <pre class="bg-dark text-light p-3"><code>{
-    "users": [
-        {
-            "id": 1,
-            "name": "max123",
-            "movie_count": 5
-        },
-        {
-            "id": 2,
-            "name": "anna456",
-            "movie_count": 3
-        }
-    ]
-}</code></pre>
+            <h3 class="h5 mt-3">Get User Details</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users/1"</code></pre>
 
-            <h3 class="h5 mt-4">Benutzerdetails / User Details</h3>
-            <pre class="bg-dark text-light p-3"><code>{
-    "user": {
-        "id": 1,
-        "name": "max123",
-        "movies": [
-            {
-                "id": 1,
-                "title": "The Matrix",
-                "director": "Lana Wachowski",
-                "year": 1999,
-                "rating": 4.5,
-                "poster_url": "https://..."
-            }
-        ]
-    }
-}</code></pre>
+            <h3 class="h5 mt-3">Get User's Movies</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users/1/movies"</code></pre>
 
-            <h3 class="h5 mt-4">Filmdetails / Movie Details</h3>
-            <pre class="bg-dark text-light p-3"><code>{
-    "movie": {
-        "id": 1,
-        "title": "The Matrix",
-        "director": "Lana Wachowski",
-        "year": 1999,
-        "rating": 4.5,
-        "poster_url": "https://...",
-        "comments": [
-            {
-                "id": 1,
-                "text": "Ein Meisterwerk!",
-                "user": "max123",
-                "created_at": "2024-03-20T15:30:00Z"
-            }
-        ]
-    }
-}</code></pre>
+            <h3 class="h5 mt-3">Get Movie Details</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/movies/1"</code></pre>
+            
+            <h3 class="h5 mt-3">Add Movie to User's List (POST)</h3>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. The CSRF token must be obtained as described above. Assumes user is logged in if endpoint implicitly requires it. / Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. Der CSRF-Token muss wie oben beschrieben bezogen werden. Geht davon aus, dass der Benutzer eingeloggt ist, falls der Endpunkt dies implizit erfordert.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-d '{
+    "title": "Inception",
+    "director": "Christopher Nolan",
+    "year": 2010,
+    "rating": 5,
+    "poster_url": "https://link.to/poster.jpg",
+    "plot": "Ein bewusstseinsverändernder Thriller.",
+    "runtime": "148 min",
+    "genre": "Sci-Fi, Thriller",
+    "imdb_id": "tt1375666"
+}'</code></pre>
+
+            <h3 class="h5 mt-3">Rate Movie for User (POST) / Film für Benutzer bewerten (POST)</h3>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. / Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-d '{"rating": 4.0}'</code></pre>
+            <p>To remove a rating: / Um eine Bewertung zu entfernen:</p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-d '{"rating": null}'</code></pre>
+
+            <h3 class="h5 mt-3">Film von Benutzerliste entfernen (DELETE)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X DELETE "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;"</code></pre>
+
+            <h3 class="h5 mt-3">Kommentar zu Film hinzufügen (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code>. Dies setzt voraus, dass der Session-Cookie den eingeloggten Benutzer korrekt identifiziert.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/movies/&lt;movie_id&gt;/comments" \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
+-d "text=Das+ist+ein+großartiger+Film!"</code></pre>
+
+            <h3 class="h5 mt-3">Film prüfen/erstellen via IMDb ID (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch einen tatsächlichen Wert.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/check_or_create_movie_by_imdb" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
+-d '{
+    "imdbID": "tt0111161",
+    "Title": "Die Verurteilten",
+    "Year": "1994",
+    "Rated": "R",
+    "Released": "14 Oct 1994",
+    "Runtime": "142 min",
+    "Genre": "Drama",
+    "Director": "Frank Darabont",
+    "Writer": "Stephen King, Frank Darabont",
+    "Actors": "Tim Robbins, Morgan Freeman, Bob Gunton",
+    "Plot": "Zwei im Gefängnis sitzende Männer freunden sich über mehrere Jahre an und finden Trost und letztendlich Erlösung durch alltägliche Anstandsbekundungen.",
+    "Language": "English",
+    "Country": "USA",
+    "Awards": "Nominiert für 7 Oscars. Weitere 21 Gewinne & 36 Nominierungen.",
+    "Poster": "https://m.media-amazon.com/images/M/MV5BMDFkYTc0MGEtZmNhMC00ZDIzLWFmNTEtODM1ZmRlYWMwMWFmXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_SX300.jpg",
+    "imdbRating": "9.3",
+    "Metascore": "80"
+}'</code></pre>
         </div>
     </div>
 
+    <hr class="my-5 border-secondary" style="border-width: 3px !important;">
+
+    <!-- German Version / Deutsche Version -->
     <div class="card bg-dark text-light mb-4">
         <div class="card-body">
-            <h2 class="card-title h4">Fehlercodes / Error Codes</h2>
-            <div class="table-responsive">
-                <table class="table table-dark">
-                    <thead>
-                        <tr>
-                            <th>Code</th>
-                            <th>Beschreibung / Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>400</td>
-                            <td>
-                                Ungültige Anfrage / Bad Request
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>404</td>
-                            <td>
-                                Ressource nicht gefunden / Resource not found
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>500</td>
-                            <td>
-                                Server-Fehler / Server error
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div class="card bg-dark text-light">
-        <div class="card-body">
-            <h2 class="card-title h4">Beispielanfragen / Example Requests</h2>
+            <h2 class="card-title h4">Übersicht</h2>
             <p>
-                Hier sind einige Beispiele für API-Anfragen mit curl:
-                Here are some examples of API requests using curl:
+                Die MovieWeb API ermöglicht den programmatischen Zugriff auf Benutzer- und Filmdaten im JSON-Format.
+            </p>
+            <p>
+                Basis-URL: <code>{{ request.host_url }}api/</code>
+            </p>
+            <p>
+                Alle Antworten erfolgen im JSON-Format.
+            </p>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Authentifizierung und CSRF-Schutz</h2>
+            
+            <h3 class="h5 mt-3">GET-Anfragen</h3>
+            <p>
+                <code>GET</code>-Anfragen an die <code>/api/...</code> Endpunkte, die lediglich Daten abrufen (z.B. <code>/api/movies</code>, <code>/api/users/1</code>), erfordern in der Regel keine spezielle Authentifizierung oder CSRF-Token. Sie können direkt aufgerufen werden.
             </p>
 
-            <h3 class="h5 mt-4">Alle Benutzer abrufen / Get all users</h3>
-            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users"</code></pre>
-
-            <h3 class="h5 mt-4">Benutzerdetails abrufen / Get user details</h3>
-            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users/1"</code></pre>
-
-            <h3 class="h5 mt-4">Filme eines Benutzers abrufen / Get user's movies</h3>
-            <pre class="bg-dark text-light p-3"><code>curl -X GET "{{ request.host_url }}api/users/1/movies"</code></pre>
+            <h3 class="h5 mt-4">POST/PUT/DELETE-Anfragen (Datenändernde Anfragen)</h3>
+            <p>
+                Datenändernde Anfragen (wie <code>POST</code>, <code>PUT</code>, <code>DELETE</code>) an die <code>/api/...</code> Endpunkte sind durch einen CSRF-Schutz (Cross-Site Request Forgery) gesichert, da die Anwendung global Flask-WTF für CSRF verwendet. Dies gilt auch, wenn diese Endpunkte JSON erwarten und zurückgeben.
+            </p>
+            <p>
+                <strong>Um diese Endpunkte (z.B. mit Postman oder curl) zu testen, benötigen Sie einen gültigen CSRF-Token:</strong>
+            </p>
+            <ol>
+                <li>
+                    <strong>Session und CSRF-Token erhalten:</strong>
+                    <p class="mb-1">
+                        Senden Sie zuerst eine <code>GET</code>-Anfrage an eine HTML-liefernde Seite Ihrer Web-Anwendung (z.B. die Startseite <code>{{ request.host_url.rstrip('/') }}</code>). Diese Anfrage etabliert eine Session mit dem Server (via Session-Cookie) und liefert einen CSRF-Token im HTML-Body (oft in einem <code>&lt;meta name="csrf-token" content="..."&gt;</code> Tag oder einem versteckten Formularfeld).
+                    </p>
+                </li>
+                <li>
+                    <strong>CSRF-Token in der API-Anfrage verwenden:</strong>
+                    <p class="mb-1">
+                        Extrahieren Sie den CSRF-Token-Wert aus der Antwort des ersten Schritts.
+                        Für Ihre datenändernde API-Anfrage (z.B. <code>POST /api/users/1/movies</code>):
+                    </p>
+                    <ul>
+                        <li>Fügen Sie einen HTTP-Header hinzu: <code>X-CSRFToken: &lt;Ihr_Token_Wert&gt;</code></li>
+                        <li>Wenn Sie Daten im JSON-Format senden (üblich für <code>POST</code>-APIs), stellen Sie sicher, dass der <code>Content-Type</code> Header auf <code>application/json</code> gesetzt ist. Der CSRF-Token wird dann primär über den <code>X-CSRFToken</code> Header validiert.</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>
+                <em>Hinweis: Die Notwendigkeit und genaue Implementierung des CSRF-Schutzes für API-Endpunkte kann variieren. Wenn eine API für rein externe Clients ohne Browser-Kontext gedacht ist, werden oft alternative Authentifizierungsmethoden wie API-Keys oder Bearer-Token verwendet, die CSRF-Problematiken umgehen können. Für die hier dokumentierten API-Endpunkte gehen wir vom globalen CSRF-Schutz der Flask-Anwendung aus.</em>
+            </p>
         </div>
     </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Endpunkte</h2>
+
+            <h3 class="h5 mt-4">Benutzer</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Methode</th>
+                            <th>Endpunkt</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/users</code></td>
+                            <td>
+                                Gibt eine Liste aller Benutzer zurück (ID, Name, Anzahl Filme).
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/users/{user_id}</code></td>
+                            <td>
+                                Gibt Details eines bestimmten Benutzers zurück, inklusive seiner Filmliste.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/users/{user_id}/movies</code></td>
+                            <td>
+                                Gibt alle Filme (Titel, Regisseur, Jahr, Rating, Poster) eines bestimmten Benutzers zurück.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/users/{user_id}/movies</code></td>
+                            <td>
+                                Fügt einen neuen Film zur Favoritenliste eines Benutzers hinzu. Erfordert einen JSON-Body mit Filminformationen (siehe Beispielanfrage) und CSRF-Schutz.
+                                <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}/rate</code></td>
+                            <td>
+                                Aktualisiert das persönliche Rating für einen bestimmten Film in der Liste eines Benutzers.
+                                <br><strong>Benötigt:</strong> JSON Body (z.B. <code>{"rating": 4.5}</code> oder <code>{"rating": null}</code> um Rating zu entfernen), <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>DELETE</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}</code></td>
+                            <td>
+                                Entfernt einen Film aus der Liste eines bestimmten Benutzers.
+                                <br><strong>Benötigt:</strong> <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="h5 mt-4">Filme</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Methode</th>
+                            <th>Endpunkt</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movies</code></td>
+                            <td>
+                                Gibt eine Liste aller Filme in der Datenbank zurück (ID, Titel, Regisseur, Jahr, Rating, Poster).
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movies/{movie_id}</code></td>
+                            <td>
+                                Gibt detaillierte Informationen zu einem bestimmten Film zurück, inklusive aller Filmdetails und Kommentare.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movies/{movie_id}/comments</code></td>
+                            <td>
+                                Gibt alle Kommentare zu einem bestimmten Film zurück.
+                            </td>
+                        </tr>
+                         <tr>
+                            <td>POST</td>
+                            <td><code>/movies/{movie_id}/comments</code></td>
+                            <td>
+                                Fügt einen neuen Kommentar zu einem bestimmten Film hinzu. Benutzer muss eingeloggt sein (Session-basiert).
+                                <br><strong>Benötigt:</strong> Formulardaten (<code>text=&lt;kommentartext&gt;</code>), <code>X-CSRFToken</code> Header (wenn via AJAX von clientseitigem JS gesendet, das CSRF handhabt).
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/check_or_create_movie_by_imdb</code></td>
+                            <td>
+                                Prüft, ob ein Film mit der gegebenen <code>imdbID</code> existiert. Wenn nicht, wird er global erstellt. Erfordert einen JSON-Body mit OMDb-ähnlichen Filmdaten (mindestens <code>imdbID</code>) und CSRF-Schutz.
+                                <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <h3 class="h5 mt-4">OMDb Proxy</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Methode</th>
+                            <th>Endpunkt</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/omdb_proxy?title=&lt;suchtitel&gt;&amp;year=&lt;jahr_optional&gt;</code></td>
+                            <td>
+                                Leitet eine Suchanfrage an die externe OMDb-API weiter. Gibt die JSON-Antwort von OMDb zurück.
+                                <br>Erfordert Query-Parameter: <code>title</code> (obligatorisch), <code>year</code> (optional).
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">Beispielanfragen mit curl</h2>
+            
+            <h3 class="h5 mt-3">GET Alle Benutzer</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users"</code></pre>
+
+            <h3 class="h5 mt-3">GET Benutzerdetails</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users/1"</code></pre>
+
+            <h3 class="h5 mt-3">GET Filme eines Benutzers</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/users/1/movies"</code></pre>
+
+            <h3 class="h5 mt-3">GET Filmdetails</h3>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/movies/1"</code></pre>
+            
+            <h3 class="h5 mt-3">Film zur Benutzerliste hinzufügen (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. Der CSRF-Token muss wie oben beschrieben bezogen werden. Geht davon aus, dass der Benutzer eingeloggt ist, falls der Endpunkt dies implizit erfordert. / Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. The CSRF token must be obtained as described above. Assumes user is logged in if endpoint implicitly requires it.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-d '{
+    "title": "Inception",
+    "director": "Christopher Nolan",
+    "year": 2010,
+    "rating": 5,
+    "poster_url": "https://link.to/poster.jpg",
+    "plot": "Ein bewusstseinsverändernder Thriller.",
+    "runtime": "148 min",
+    "genre": "Sci-Fi, Thriller",
+    "imdb_id": "tt1375666"
+}'</code></pre>
+
+            <h3 class="h5 mt-3">Film für Benutzer bewerten (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. / Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-d '{"rating": 4.0}'</code></pre>
+            <p>Um eine Bewertung zu entfernen: / To remove a rating:</p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-d '{"rating": null}'</code></pre>
+
+            <h3 class="h5 mt-3">Film von Benutzerliste entfernen (DELETE)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X DELETE "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;"</code></pre>
+
+            <h3 class="h5 mt-3">Kommentar zu Film hinzufügen (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code>. Dies setzt voraus, dass der Session-Cookie den eingeloggten Benutzer korrekt identifiziert.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/movies/&lt;movie_id&gt;/comments" \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
+-d "text=Das+ist+ein+großartiger+Film!"</code></pre>
+
+            <h3 class="h5 mt-3">Film prüfen/erstellen via IMDb ID (POST)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch einen tatsächlichen Wert.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/check_or_create_movie_by_imdb" \
+-H "Content-Type: application/json" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
+-d '{
+    "imdbID": "tt0111161",
+    "Title": "Die Verurteilten",
+    "Year": "1994",
+    "Rated": "R",
+    "Released": "14 Oct 1994",
+    "Runtime": "142 min",
+    "Genre": "Drama",
+    "Director": "Frank Darabont",
+    "Writer": "Stephen King, Frank Darabont",
+    "Actors": "Tim Robbins, Morgan Freeman, Bob Gunton",
+    "Plot": "Zwei im Gefängnis sitzende Männer freunden sich über mehrere Jahre an und finden Trost und letztendlich Erlösung durch alltägliche Anstandsbekundungen.",
+    "Language": "English",
+    "Country": "USA",
+    "Awards": "Nominiert für 7 Oscars. Weitere 21 Gewinne & 36 Nominierungen.",
+    "Poster": "https://m.media-amazon.com/images/M/MV5BMDFkYTc0MGEtZmNhMC00ZDIzLWFmNTEtODM1ZmRlYWMwMWFmXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_SX300.jpg",
+    "imdbRating": "9.3",
+    "Metascore": "80"
+}'</code></pre>
+        </div>
+    </div>
+
 </div>
 {% endblock %} 
