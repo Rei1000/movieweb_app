@@ -164,18 +164,7 @@ def home():
     Home route: displays the application's welcome page with top movies.
     Zeigt die Startseite der Anwendung mit den Top-Filmen.
     """
-    top_movies = (
-        db.session.query(
-            Movie,
-            func.count(UserMovie.id).label('user_count'),
-            func.avg(Movie.community_rating).label('avg_rating')
-        )
-        .join(UserMovie, UserMovie.movie_id == Movie.id)
-        .group_by(Movie.id)
-        .order_by(desc('user_count'), desc(func.avg(Movie.community_rating)))
-        .limit(10)
-        .all()
-    )
+    top_movies = data_manager.get_top_movies()
     return render_template('home.html', top_movies=top_movies)
 
 @app.route('/login', methods=['POST'])
@@ -187,8 +176,8 @@ def login():
     Login-Route: Verarbeitet Benutzer-Login-Versuche per POST-Request.
     Erwartet 'username' in den Formulardaten. Gibt JSON-Antwort zurück.
     """
-    username = request.form.get('username', '').strip().lower()
-    user = User.query.filter_by(name=username).first()
+    username = request.form.get('username', '').strip() # .lower() removed, as data_manager handles it
+    user = data_manager.get_user_by_name(username)
     
     if user:
         session['user_id'] = user.id
@@ -204,17 +193,18 @@ def register():
     Registrierungs-Route: Verarbeitet Registrierungsversuche neuer Benutzer per POST-Request.
     Erwartet 'username' in den Formulardaten. Gibt JSON-Antwort zurück.
     """
-    username = request.form.get('username', '').strip().lower()
+    username = request.form.get('username', '').strip()
     
-    if User.query.filter_by(name=username).first():
-        return jsonify({'success': False, 'message': 'Username already exists.'})
+    # data_manager.add_user handles stripping, lowercasing, empty check and duplicate check
+    new_user = data_manager.add_user(username)
     
-    user = User(name=username)
-    db.session.add(user)
-    db.session.commit()
+    if not new_user:
+        # add_user returns None if name is empty or user already exists.
+        # We can rely on the logging within add_user for specific reasons.
+        return jsonify({'success': False, 'message': 'Username invalid or already exists.'}) # Generic message
     
-    session['user_id'] = user.id
-    return jsonify({'success': True, 'redirect': f'/users/{user.id}'})
+    session['user_id'] = new_user.id
+    return jsonify({'success': True, 'redirect': f'/users/{new_user.id}'})
 
 @app.route('/logout')
 def logout():
@@ -246,19 +236,14 @@ def list_user_movies(user_id):
     Zeigt alle Lieblingsfilme eines bestimmten Benutzers an.
     """
     try:
-        # Benutzer zum Anzeigen des Namens abrufen
-        user = User.query.get(user_id)
+        user = data_manager.get_user_by_id(user_id)
         if not user:
             flash('User not found.', 'warning')
-            return redirect('/users')
+            return redirect(url_for('list_users')) # Changed from '/users' to url_for for consistency
         
-        # Get UserMovie links to have both Movie details and User rating
-        # UserMovie-Verknüpfungen abrufen, um sowohl Filmdetails als auch Benutzerbewertungen zu erhalten
-        user_movie_relations = UserMovie.query.filter_by(user_id=user_id).all()
+        user_movie_relations = data_manager.get_user_movie_relations(user_id)
         
     except Exception as e:
-        # Log error for server-side diagnostics.
-        # Logge den Fehler für serverseitige Diagnose.
         current_app.logger.error(f"Error in list_user_movies for user {user_id}: {e}")
         # A bilingual error message for the user would be good here, but since it's a 500 error, the generic 500.html is rendered.
         # Eine zweisprachige Fehlermeldung für den Benutzer wäre hier gut, aber da es ein 500er ist, wird die generische 500.html gerendert.
@@ -281,18 +266,19 @@ def add_user(): # Hinzugefügt: Fehlende Funktion
     Kein Standard-Registrierungsablauf.
     """
     if request.method == 'POST':
-        name = request.form.get('name')
-        if name:
-            if User.query.filter(func.lower(User.name) == func.lower(name)).first():
-                flash(f'User "{name}" already exists.', 'warning')
-            else:
-                new_user = User(name=name)
-                db.session.add(new_user)
-                db.session.commit()
-                flash(f'User "{name}" added successfully.', 'success')
-                return redirect(url_for('list_users'))
-        else:
+        name = request.form.get('name', '').strip()
+        if not name: # Check for empty name before calling data_manager
             flash('Username cannot be empty.', 'danger')
+        else:
+            # data_manager.add_user handles stripping, lowercasing, empty check and duplicate check
+            new_user_obj = data_manager.add_user(name)
+            if new_user_obj:
+                flash(f'User "{new_user_obj.name}" added successfully.', 'success') # Use name from returned object
+                return redirect(url_for('list_users'))
+            else:
+                # add_user returns None if name is empty (already checked) or user already exists.
+                # We can rely on the logging within add_user for specific reasons.
+                flash(f'User "{name}" already exists or is invalid.', 'warning') # Generic message
     return render_template('add_user.html') # Erstellt eine einfache Vorlage oder leitet um
 
 @app.route('/users/<int:user_id>/add_movie', methods=['GET', 'POST'])
@@ -754,24 +740,22 @@ def add_movie_comment_page(movie_id):
         flash('You must be logged in to comment.', 'warning')
         return redirect(url_for('movie_page', movie_id=movie_id))
 
-    user = User.query.get(session['user_id'])
-    movie = Movie.query.get_or_404(movie_id)
+    # User and Movie objects are implicitly validated by data_manager.add_comment
+    # if they don't exist, add_comment will return None and log the issue.
+    # We still need user_id from session.
+    user_id_from_session = session['user_id']
 
     text = request.form.get('text', '').strip()
     if not text:
         flash('Comment cannot be empty.', 'warning')
         return redirect(url_for('movie_page', movie_id=movie_id))
 
-    try:
-        comment = Comment(movie_id=movie.id, user_id=user.id, text=text)
-        db.session.add(comment)
-        db.session.commit()
+    new_comment = data_manager.add_comment(movie_id=movie_id, user_id=user_id_from_session, text=text)
+
+    if new_comment:
         flash('Comment added successfully!', 'success')
-    except Exception as e:
-        db.session.rollback()
-        # Log error when adding comment from page fails.
-        # Logge Fehler, wenn das Hinzufügen eines Kommentars von der Seite fehlschlägt.
-        current_app.logger.error(f"Error adding comment from page: {e}")
+    else:
+        # Specific error logging is done within data_manager.add_comment
         flash('Error adding comment. Please try again.', 'danger')
     
     return redirect(url_for('movie_page', movie_id=movie_id))

@@ -7,9 +7,9 @@ This module implements the DataManagerInterface using SQLite/SQLAlchemy.
 from typing import List, Optional
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from datamanager.data_manager_interface import DataManagerInterface
-from models import db, User, Movie, UserMovie
+from models import db, User, Movie, UserMovie, Comment
 from datetime import datetime  # For year validation
 
 class SQLiteDataManager(DataManagerInterface):
@@ -515,3 +515,132 @@ class SQLiteDataManager(DataManagerInterface):
             db.session.rollback()
             current_app.logger.error(f"Unexpected error adding global movie with imdb_id {imdb_id}: {e}. / Unerwarteter Fehler beim Hinzufügen des globalen Films mit imdb_id {imdb_id}: {e}.")
             return None
+
+    def get_top_movies(self, limit: int = 10) -> List[tuple[Movie, int, Optional[float]]]:
+        """
+        Liefert die Top-Filme basierend auf Nutzerzahl und durchschnittlichem Community-Rating.
+        """
+        try:
+            results = (
+                db.session.query(
+                    Movie,
+                    func.count(UserMovie.id).label('user_count'),
+                    func.avg(Movie.community_rating).label('avg_rating')
+                )
+                .join(UserMovie, UserMovie.movie_id == Movie.id)
+                .group_by(Movie.id)
+                .order_by(desc('user_count'), desc(Movie.community_rating)) # Corrected: order by actual column or its label
+                .limit(limit)
+                .all()
+            )
+            return results
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching top movies: {e} / Fehler beim Abrufen der Top-Filme: {e}")
+            return []
+
+    def get_user_by_name(self, name: str) -> Optional[User]:
+        """
+        Liefert einen Benutzer anhand seines Namens (case-insensitive).
+        Der Name wird intern bereinigt und in Kleinbuchstaben umgewandelt für den Vergleich.
+        """
+        try:
+            # Bereinige den Eingabe-Namen genauso wie beim Erstellen/Suchen
+            search_name = name.strip().lower()
+            if not search_name:
+                return None
+            return User.query.filter(func.lower(User.name) == search_name).first()
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching user by name '{name}': {e} / Fehler beim Abrufen des Benutzers nach Name '{name}': {e}")
+            return None
+
+    def get_user_by_id(self, user_id: int) -> Optional[User]:
+        """
+        Liefert einen Benutzer anhand seiner ID.
+        """
+        try:
+            return User.query.get(user_id)
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching user by ID {user_id}: {e} / Fehler beim Abrufen des Benutzers nach ID {user_id}: {e}")
+            return None
+
+    def get_user_movie_relations(self, user_id: int) -> List[UserMovie]:
+        """
+        Liefert alle UserMovie-Objekte für einen bestimmten Benutzer,
+        geordnet nach einem sinnvollen Kriterium (z.B. Film-ID oder Hinzufüge-Datum, falls vorhanden).
+        Aktuell nicht explizit geordnet, SQLAlchemy-Standardordnung.
+        """
+        try:
+            # Explicitly join with Movie and User to potentially optimize or allow ordering by related fields later
+            # Explizit mit Movie und User verbinden, um potenziell zu optimieren oder späteres Sortieren nach verwandten Feldern zu ermöglichen
+            relations = UserMovie.query.filter_by(user_id=user_id)\
+                .join(Movie, UserMovie.movie_id == Movie.id)\
+                .join(User, UserMovie.user_id == User.id)\
+                .all() # Add .order_by(Movie.title) or UserMovie.id for explicit ordering if needed
+            return relations
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching user movie relations for user {user_id}: {e} / Fehler beim Abrufen der Filmverknüpfungen für Benutzer {user_id}: {e}")
+            return []
+
+    def get_movie_by_id(self, movie_id: int) -> Optional[Movie]:
+        """
+        Liefert einen Film anhand seiner ID.
+        """
+        try:
+            return Movie.query.get(movie_id)
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching movie by ID {movie_id}: {e} / Fehler beim Abrufen des Films nach ID {movie_id}: {e}")
+            return None
+
+    def add_comment(self, movie_id: int, user_id: int, text: str) -> Optional[Comment]:
+        """
+        Fügt einen neuen Kommentar zu einem Film hinzu.
+        """
+        text = text.strip()
+        if not text:
+            current_app.logger.warning("Attempted to add empty comment. / Versuch, leeren Kommentar hinzuzufügen.")
+            return None
+
+        user = self.get_user_by_id(user_id)
+        if not user:
+            current_app.logger.warning(f"User with ID {user_id} not found when adding comment. / Benutzer mit ID {user_id} beim Hinzufügen eines Kommentars nicht gefunden.")
+            return None
+        
+        movie = self.get_movie_by_id(movie_id)
+        if not movie:
+            current_app.logger.warning(f"Movie with ID {movie_id} not found when adding comment. / Film mit ID {movie_id} beim Hinzufügen eines Kommentars nicht gefunden.")
+            return None
+            
+        try:
+            comment = Comment(movie_id=movie.id, user_id=user.id, text=text)
+            db.session.add(comment)
+            db.session.commit()
+            current_app.logger.info(f"Comment added by user {user_id} to movie {movie_id}. / Kommentar von Benutzer {user_id} zu Film {movie_id} hinzugefügt.")
+            return comment
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error adding comment by user {user_id} to movie {movie_id}: {e} / Fehler beim Hinzufügen des Kommentars von Benutzer {user_id} zu Film {movie_id}: {e}")
+            return None
+
+    def get_all_movies(self) -> List[Movie]:
+        """
+        Liefert eine Liste aller Filme in der Datenbank.
+        """
+        try:
+            return Movie.query.all() # Ggf. .order_by(Movie.title) hinzufügen
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching all movies: {e} / Fehler beim Abrufen aller Filme: {e}")
+            return []
+
+    def get_comments_for_movie(self, movie_id: int) -> List[Comment]:
+        """
+        Liefert alle Kommentare für einen bestimmten Film, geordnet nach Erstellungsdatum (neueste zuerst).
+        """
+        try:
+            movie = self.get_movie_by_id(movie_id) # Check if movie exists
+            if not movie:
+                current_app.logger.warning(f"Movie with ID {movie_id} not found when fetching comments. / Film mit ID {movie_id} beim Abrufen der Kommentare nicht gefunden.")
+                return []
+            return Comment.query.filter_by(movie_id=movie_id).order_by(Comment.created_at.desc()).all()
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching comments for movie {movie_id}: {e} / Fehler beim Abrufen der Kommentare für Film {movie_id}: {e}")
+            return []

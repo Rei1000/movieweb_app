@@ -103,13 +103,22 @@ def get_users():
         JSON: Liste der Benutzer mit ID, Name und Anzahl der Filme.
               List of users with ID, name and movie count.
     """
-    users = User.query.all()
+    users_from_db = data_manager.get_all_users()
+    users_list = []
+    for user_obj in users_from_db:
+        # Die Logik für 'movie_count' bleibt hier, da sie spezifisch für diese API-Antwort ist.
+        # data_manager.get_all_users() liefert reine User-Objekte.
+        # Um movie_count effizient zu bekommen, müsste man UserMovie-Relationen laden.
+        # Alternativ könnte man die UserMovie-Relation in User vorladen (lazy='joined' oder subquery)
+        # oder eine spezifischere Methode im DataManager erstellen.
+        # Für jetzt belassen wir es bei len(user_obj.movies) direkt auf dem Objekt.
+        users_list.append({
+            'id': user_obj.id,
+            'name': user_obj.name,
+            'movie_count': len(user_obj.movies) # Requires user.movies to be loaded
+        })
     return jsonify({
-        'users': [{
-            'id': user.id,
-            'name': user.name,
-            'movie_count': len(user.movies)
-        } for user in users]
+        'users': users_list
     })
 
 @api.route('/users/<int:user_id>')
@@ -132,20 +141,29 @@ def get_user(user_id):
         404: Wenn der Benutzer nicht gefunden wurde.
              If the user was not found.
     """
-    user = User.query.get_or_404(user_id)
+    user = data_manager.get_user_by_id(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Hole die Filme des Benutzers separat, um die Datenstruktur beizubehalten
+    # user.movies wird hier direkt verwendet, was okay ist, wenn User-Objekt vom DM kommt
+    # und die Relation geladen ist (Standard ist lazy loading)
+    user_movies_data = [{
+        'id': um_relation.movie.id, # Annahme: user.movies ist eine Liste von UserMovie Objekten
+        'title': um_relation.movie.title,
+        'director': um_relation.movie.director,
+        'year': um_relation.movie.year,
+        'community_rating': um_relation.movie.community_rating,
+        'community_rating_count': um_relation.movie.community_rating_count,
+        'poster_url': um_relation.movie.poster_url,
+        'user_rating': um_relation.user_rating # Hinzufügen der persönlichen Bewertung
+    } for um_relation in user.movies] # user.movies ist die UserMovie Collection
+
     return jsonify({
         'user': {
             'id': user.id,
             'name': user.name,
-            'movies': [{
-                'id': movie.id,
-                'title': movie.title,
-                'director': movie.director,
-                'year': movie.year,
-                'community_rating': movie.community_rating,
-                'community_rating_count': movie.community_rating_count,
-                'poster_url': movie.poster_url
-            } for movie in user.movies]
+            'movies': user_movies_data
         }
     })
 
@@ -154,8 +172,8 @@ def get_user(user_id):
 @cache_response()
 def get_user_movies(user_id):
     """
-    Gibt alle Filme eines Benutzers zurück.
-    Returns all movies of a user.
+    Gibt alle Filme eines Benutzers zurück, inklusive persönlicher Bewertung.
+    Returns all movies of a user, including their personal rating.
 
     Args:
         user_id (int): ID des Benutzers.
@@ -169,17 +187,27 @@ def get_user_movies(user_id):
         404: Wenn der Benutzer nicht gefunden wurde.
              If the user was not found.
     """
-    user = User.query.get_or_404(user_id)
+    user = data_manager.get_user_by_id(user_id) # Erst Benutzer prüfen
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    user_movie_relations = data_manager.get_user_movie_relations(user_id)
+    
+    movies_data = []
+    for relation in user_movie_relations:
+        movies_data.append({
+            'id': relation.movie.id,
+            'title': relation.movie.title,
+            'director': relation.movie.director,
+            'year': relation.movie.year,
+            'community_rating': relation.movie.community_rating,
+            'community_rating_count': relation.movie.community_rating_count,
+            'poster_url': relation.movie.poster_url,
+            'user_rating': relation.user_rating # Persönliche Bewertung des Nutzers
+        })
+
     return jsonify({
-        'movies': [{
-            'id': movie.id,
-            'title': movie.title,
-            'director': movie.director,
-            'year': movie.year,
-            'community_rating': movie.community_rating,
-            'community_rating_count': movie.community_rating_count,
-            'poster_url': movie.poster_url
-        } for movie in user.movies]
+        'movies': movies_data
     })
 
 @api.route('/movies')
@@ -194,7 +222,7 @@ def get_movies():
         JSON: Liste aller Filme.
               List of all movies.
     """
-    movies = Movie.query.all()
+    movies_from_db = data_manager.get_all_movies()
     return jsonify({
         'movies': [{
             'id': movie.id,
@@ -204,7 +232,7 @@ def get_movies():
             'community_rating': movie.community_rating,
             'community_rating_count': movie.community_rating_count,
             'poster_url': movie.poster_url
-        } for movie in movies]
+        } for movie in movies_from_db]
     })
 
 @api.route('/movies/<int:movie_id>')
@@ -227,7 +255,20 @@ def get_movie(movie_id):
         404: Wenn der Film nicht gefunden wurde.
              If the movie was not found.
     """
-    movie = Movie.query.get_or_404(movie_id)
+    movie = data_manager.get_movie_by_id(movie_id)
+    if not movie:
+        return jsonify({'error': 'Movie not found'}), 404
+
+    # Kommentare separat laden, um die Struktur beizubehalten
+    comments_from_db = data_manager.get_comments_for_movie(movie_id)
+    comments_data = [{
+        'id': c.id,
+        'text': c.text,
+        'user': c.user.name, # Annahme: c.user Relation ist geladen
+        'created_at': c.created_at.isoformat(),
+        'likes_count': c.likes_count
+    } for c in comments_from_db]
+
     return jsonify({
         'movie': {
             'id': movie.id,
@@ -248,15 +289,7 @@ def get_movie(movie_id):
             'metascore': movie.metascore,
             'rated_omdb': movie.rated_omdb,
             'imdb_id': movie.imdb_id,
-            'imdb_rating': movie.imdb_rating,
-            'imdb_votes': movie.imdb_votes,
-            'original_title': movie.original_title,
-            'comments': [{
-                'id': comment.id,
-                'text': comment.text,
-                'user': comment.user.name,
-                'created_at': comment.created_at.isoformat()
-            } for comment in movie.comments]
+            'comments': comments_data
         }
     })
 
@@ -265,29 +298,37 @@ def get_movie(movie_id):
 @cache_response()
 def get_movie_comments(movie_id):
     """
-    Gibt alle Kommentare zu einem Film zurück.
-    Returns all comments for a movie.
+    Gibt alle Kommentare für einen bestimmten Film zurück.
+    Returns all comments for a specific movie.
 
     Args:
         movie_id (int): ID des Films.
                        ID of the movie.
 
     Returns:
-        JSON: Liste der Kommentare zum Film.
-              List of comments for the movie.
+        JSON: Liste der Kommentare.
+              List of comments.
 
     Raises:
         404: Wenn der Film nicht gefunden wurde.
              If the movie was not found.
     """
-    movie = Movie.query.get_or_404(movie_id)
+    # Sicherstellen, dass der Film existiert, bevor Kommentare geladen werden.
+    # data_manager.get_comments_for_movie prüft dies bereits intern und gibt ggf. eine leere Liste zurück.
+    # Wenn hier ein 404 gewünscht ist, falls der Film nicht existiert, muss der Film zuerst geladen werden.
+    movie = data_manager.get_movie_by_id(movie_id)
+    if not movie:
+        return jsonify({'error': 'Movie not found'}), 404
+
+    comments_from_db = data_manager.get_comments_for_movie(movie_id)
     return jsonify({
         'comments': [{
-            'id': comment.id,
-            'text': comment.text,
-            'user': comment.user.name,
-            'created_at': comment.created_at.isoformat()
-        } for comment in movie.comments]
+            'id': c.id,
+            'text': c.text,
+            'user': c.user.name, # Annahme: c.user Relation ist geladen
+            'created_at': c.created_at.isoformat(),
+            'likes_count': c.likes_count
+        } for c in comments_from_db]
     })
 
 @api.route('/users/<int:user_id>/movies', methods=['POST'])
