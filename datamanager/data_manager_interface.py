@@ -130,3 +130,11 @@ class DataManagerInterface(ABC):
         Returns all comments for a specific movie, ordered by creation date (newest first).
         """
         pass
+
+    @abstractmethod
+    def get_user_movie_link(self, user_id: int, movie_id: int) -> Optional[UserMovie]:
+        """
+        Liefert die spezifische UserMovie-Verknüpfung zwischen einem Benutzer und einem Film.
+        Returns the specific UserMovie link between a user and a movie.
+        """
+        pass

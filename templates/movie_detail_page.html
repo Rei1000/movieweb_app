@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            fetch(`/movie/${currentMovieId}/comment`, {
+            fetch(`/movie/${currentMovieId}/comment/page`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -422,30 +422,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ comment_text: commentText })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    commentMessageDiv.textContent = data.message; // Should be English only from app.py / Sollte nur Englisch sein von app.py
-                    commentMessageDiv.style.color = '#28a745';
-                    document.getElementById('comment_text').value = ''; // Clear textarea / Textarea leeren
-                    
-                    // Add new comment to the list (or reload comments) / Neuen Kommentar zur Liste hinzufügen (oder Kommentare neu laden)
-                    const newCommentHtml = `
-                        <div class="comment-item">
-                            <p><strong>${data.user_name || 'Anonymous'}:</strong></p>
-                            <p>${commentText}</p>
-                            <small>${data.created_at || 'Just now / Gerade eben'}</small>
-                        </div>
-                    `;
-                    const noCommentsMessage = commentsListDiv.querySelector('p');
-                    if (noCommentsMessage && noCommentsMessage.textContent.startsWith('No comments yet')) {
-                        commentsListDiv.innerHTML = newCommentHtml; // Replace "No comments" message / "Keine Kommentare"-Nachricht ersetzen
-                    } else {
-                        commentsListDiv.insertAdjacentHTML('afterbegin', newCommentHtml); // Add to top / Oben hinzufügen
-                    }
+            // .then(response => response.json()) // Entfernen oder anpassen, da Server 302 redirectet
+            .then(response => {
+                if (response.ok || response.redirected) { // Prüfe auf Erfolg (2xx) oder Redirect (3xx)
+                    document.getElementById('comment_text').value = ''; // Clear textarea
+                    window.location.reload(); // Seite neu laden, um Kommentar und Flash anzuzeigen
                 } else {
-                    commentMessageDiv.textContent = data.message || 'Could not post comment. / Kommentar konnte nicht gepostet werden.';
-                    commentMessageDiv.style.color = '#dc3545';
+                    // Versuche, eine Fehlermeldung aus dem Body zu lesen, falls es JSON ist
+                    return response.json().then(errData => {
+                        commentMessageDiv.textContent = errData.message || 'Could not post comment. Check server logs.';
+                        commentMessageDiv.style.color = '#dc3545';
+                    }).catch(() => {
+                        // Fallback, wenn der Body kein JSON ist oder ein anderer Fehler auftritt
+                        commentMessageDiv.textContent = 'Could not post comment. Status: ' + response.status;
+                        commentMessageDiv.style.color = '#dc3545';
+                    });
                 }
             })
             .catch(error => {

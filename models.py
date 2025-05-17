@@ -47,14 +47,15 @@ class Movie(db.Model):
     language = db.Column(db.String(255), nullable=True)
     country = db.Column(db.String(255), nullable=True)
     awards = db.Column(db.Text, nullable=True)
-    poster_url = db.Column(db.String(500), nullable=True)
+    poster_url = db.Column(db.String(255), nullable=True)
     community_rating = db.Column(db.Float, nullable=True) # Average community rating / Durchschnittliches Community-Rating
     community_rating_count = db.Column(db.Integer, default=0) # Number of ratings for the average / Anzahl der Bewertungen für den Durchschnitt
     imdb_rating = db.Column(db.String(10), nullable=True)
     imdb_votes = db.Column(db.String(50), nullable=True)
-    imdb_id = db.Column(db.String(50), nullable=True, unique=True)
+    imdb_id = db.Column(db.String(20), nullable=True, unique=True) # IMDb ID für eindeutige Identifizierung
     metascore = db.Column(db.String(10), nullable=True)
     rated_omdb = db.Column(db.String(20), nullable=True) # MPAA rating from OMDb / MPAA-Bewertung von OMDb
+    initial_omdb_rating = db.Column(db.Float, nullable=True) # Initiales, von OMDb übernommenes 5-Sterne-Rating
 
     # Relationships / Beziehungen
     users = db.relationship('UserMovie', back_populates='movie', cascade="all, delete-orphan") # Users who have this movie in their list / Benutzer, die diesen Film in ihrer Liste haben

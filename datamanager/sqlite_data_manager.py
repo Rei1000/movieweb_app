@@ -155,36 +155,33 @@ class SQLiteDataManager(DataManagerInterface):
                 # Info-Log: Film nicht gefunden, neuer Eintrag wird erstellt.
                 current_app.logger.info(f"Movie with imdb_id {imdb_id} not found. Creating new entry. / Film mit imdb_id {imdb_id} nicht gefunden. Neuer Eintrag wird erstellt.")
                 
-                initial_community_rating = None
-                initial_community_rating_count = 0
+                db_initial_omdb_rating = None
                 if omdb_rating_for_community is not None and 0 <= omdb_rating_for_community <= 5:
-                    initial_community_rating = omdb_rating_for_community
-                    initial_community_rating_count = 1 # Counts as one initial "rating" / Zählt als eine initiale "Bewertung"
-                    # Log info: Using OMDb rating for initial community rating.
-                    # Info-Log: OMDb-Rating wird als initiales Community-Rating verwendet.
-                    current_app.logger.info(f"Using OMDb rating {omdb_rating_for_community} as initial community rating for movie {imdb_id}. / OMDb-Rating {omdb_rating_for_community} wird als initiales Community-Rating für Film {imdb_id} verwendet.")
+                    db_initial_omdb_rating = omdb_rating_for_community
+                    current_app.logger.info(f"Using OMDb rating {omdb_rating_for_community} as initial_omdb_rating for movie {imdb_id}.")
 
                 movie = Movie(
                     title=title,
                     director=director,
                     year=year,
-                    community_rating=initial_community_rating, # Set initial community rating / Initiales Community-Rating setzen
-                    community_rating_count=initial_community_rating_count,
+                    # community_rating und community_rating_count werden durch _update_community_rating gesetzt
                     poster_url=poster_url,
                     plot=plot,
                     runtime=runtime,
                     awards=awards,
-                    language=languages, # Wurde in models.py zu language geändert
+                    language=languages, 
                     genre=genre,
                     actors=actors,
                     writer=writer,
                     country=country,
                     metascore=metascore,
-                    rated_omdb=rated, # Wurde in models.py zu rated_omdb geändert
-                    imdb_id=imdb_id
+                    rated_omdb=rated, 
+                    imdb_id=imdb_id,
+                    initial_omdb_rating=db_initial_omdb_rating # HIER setzen
                 )
                 db.session.add(movie)
-                db.session.flush() # Make movie.id available for UserMovie / movie.id für UserMovie verfügbar machen
+                db.session.flush() # Make movie.id available
+                # Kein expliziter Commit hier, da _update_community_rating am Ende committet
 
             # Check if the UserMovie link already exists
             # Prüfen, ob die UserMovie-Verknüpfung bereits existiert
@@ -212,7 +209,6 @@ class SQLiteDataManager(DataManagerInterface):
                     # Info-Log: Benutzerbewertung für existierende Verknüpfung wird entfernt.
                     current_app.logger.info(f"Removing user_rating for existing link user {user.id}, movie {movie.id}. / Benutzerbewertung für existierende Verknüpfung Benutzer {user.id}, Film {movie.id} entfernt.")
 
-            db.session.commit() # Save changes to UserMovie and possibly new Movie / Änderungen an UserMovie und ggf. neuem Movie speichern
             self._update_community_rating(movie.id) # Update community rating based on all UserMovie entries / Community-Rating basierend auf allen UserMovie-Einträgen aktualisieren
             return movie
         except SQLAlchemyError as e:
@@ -352,24 +348,36 @@ class SQLiteDataManager(DataManagerInterface):
                 current_app.logger.warning(f"Movie {movie_id} not found for updating community rating. / Film {movie_id} nicht gefunden zum Aktualisieren des Community-Ratings.")
                 return False
 
+            current_total_rating = 0.0
+            current_rating_count = 0
+
+            # Berücksichtige das initial_omdb_rating als erste "Stimme", falls vorhanden
+            if movie.initial_omdb_rating is not None:
+                current_total_rating += movie.initial_omdb_rating
+                current_rating_count += 1
+                current_app.logger.debug(f"Movie {movie_id}: Initial OMDb rating {movie.initial_omdb_rating} included in community rating calculation.")
+
             # Get all valid user ratings for this movie
             # Alle gültigen Benutzerbewertungen für diesen Film abrufen
-            user_ratings = db.session.query(UserMovie.user_rating).filter(
+            user_ratings_query = db.session.query(UserMovie.user_rating).filter(
                 UserMovie.movie_id == movie_id,
                 UserMovie.user_rating.isnot(None)
             ).all()
 
-            ratings_list = [r[0] for r in user_ratings]
+            user_ratings_list = [r[0] for r in user_ratings_query]
 
-            if ratings_list:
-                movie.community_rating = sum(ratings_list) / len(ratings_list)
-                movie.community_rating_count = len(ratings_list)
+            current_total_rating += sum(user_ratings_list)
+            current_rating_count += len(user_ratings_list)
+            
+            if current_rating_count > 0:
+                movie.community_rating = current_total_rating / current_rating_count
+                movie.community_rating_count = current_rating_count
             else:
-                movie.community_rating = None # No ratings, so no average / Keine Bewertungen, also kein Durchschnitt
+                movie.community_rating = None # Sollte nicht passieren, wenn initial_omdb_rating da ist
                 movie.community_rating_count = 0
             
             db.session.commit()
-            current_app.logger.info(f"Community rating for movie {movie_id} updated: {movie.community_rating} ({movie.community_rating_count} ratings). / Community-Rating für Film {movie_id} aktualisiert: {movie.community_rating} ({movie.community_rating_count} Bewertungen).")
+            current_app.logger.info(f"Community rating for movie {movie_id} updated: {movie.community_rating} ({movie.community_rating_count} ratings). initial_omdb_rating was: {movie.initial_omdb_rating}")
             return True
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -500,12 +508,17 @@ class SQLiteDataManager(DataManagerInterface):
                 country=movie_data.get('Country', '').strip() or None,
                 metascore=movie_data.get('Metascore', '').strip() or None,
                 rated_omdb=movie_data.get('Rated', '').strip() or None, # 'Rated' in OMDb
-                community_rating=initial_community_rating_val, # Set here / Hier setzen
-                community_rating_count=initial_community_rating_count_val # Set here / Hier setzen
+                community_rating=initial_community_rating_val, # Wird jetzt durch _update_community_rating initial mit dem OMDb Wert (falls vorhanden) gesetzt
+                community_rating_count=initial_community_rating_count_val, # Wird jetzt durch _update_community_rating initial mit 1 (falls OMDb Wert vorhanden) gesetzt
+                initial_omdb_rating=initial_community_rating_val # HIER setzen wir das neue Feld
             )
             db.session.add(new_movie)
-            db.session.commit()
-            current_app.logger.info(f"Movie with imdb_id {imdb_id} added globally with id {new_movie.id}. / Film mit imdb_id {imdb_id} global mit ID {new_movie.id} hinzugefügt.")
+            db.session.commit() # Commit, damit new_movie.id verfügbar ist
+            current_app.logger.info(f"Movie with imdb_id {imdb_id} added globally with id {new_movie.id}, initial_omdb_rating: {initial_community_rating_val}.")
+            
+            # Da _update_community_rating jetzt das initial_omdb_rating berücksichtigt,
+            # können wir es hier aufrufen, um das community_rating und community_rating_count korrekt zu setzen.
+            self._update_community_rating(new_movie.id)
             return new_movie
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -644,3 +657,23 @@ class SQLiteDataManager(DataManagerInterface):
         except SQLAlchemyError as e:
             current_app.logger.error(f"Error fetching comments for movie {movie_id}: {e} / Fehler beim Abrufen der Kommentare für Film {movie_id}: {e}")
             return []
+
+    def get_user_movie_link(self, user_id: int, movie_id: int) -> Optional[UserMovie]:
+        """
+        Liefert die spezifische UserMovie-Verknüpfung zwischen einem Benutzer und einem Film.
+        """
+        try:
+            # Stelle sicher, dass User und Movie existieren, bevor die Verknüpfung gesucht wird
+            user = self.get_user_by_id(user_id)
+            if not user:
+                current_app.logger.warning(f"User with ID {user_id} not found when fetching UserMovie link.")
+                return None
+            movie = self.get_movie_by_id(movie_id)
+            if not movie:
+                current_app.logger.warning(f"Movie with ID {movie_id} not found when fetching UserMovie link.")
+                return None
+
+            return UserMovie.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+        except SQLAlchemyError as e:
+            current_app.logger.error(f"Error fetching UserMovie link for user {user_id}, movie {movie_id}: {e}")
+            return None

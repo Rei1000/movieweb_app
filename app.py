@@ -144,7 +144,7 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = User.query.get(user_id)
+        g.user = data_manager.get_user_by_id(user_id)
 
 @app.context_processor
 def inject_user_status():
@@ -300,7 +300,10 @@ def add_movie(user_id):
     3. Benutzer sieht OMDb-/DB-Details und ein Formular zum Hinzufügen des Films mit persönlicher Bewertung.
     4. POST-Request sendet das Formular ab, um den Film zur Benutzerliste und ggf. zur globalen DB hinzuzufügen.
     """
-    user = User.query.get_or_404(user_id)
+    user = data_manager.get_user_by_id(user_id)
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('list_users'))
     
     # Initial states for template variables
     # Initialzustände für Template-Variablen
@@ -325,7 +328,7 @@ def add_movie(user_id):
         # Phase 2b: Film-ID wurde direkt übergeben (z.B. von KI-Empfehlungen)
         if movie_to_add_id_value:
             current_app.logger.info(f"User {user_id} will add existing movie_id: {movie_to_add_id_value}")
-            movie_from_db = Movie.query.get(movie_to_add_id_value)
+            movie_from_db = data_manager.get_movie_by_id(movie_to_add_id_value)
             if movie_from_db:
                 # Provide data as if it came from OMDb fetch
                 # Daten bereitstellen, als ob sie von einem OMDb-Abruf stammen
@@ -353,7 +356,7 @@ def add_movie(user_id):
                 if movie_from_db.community_rating is not None:
                     rating5_for_template = movie_from_db.community_rating
                 else:
-                    user_movie_link = UserMovie.query.filter_by(user_id=user_id, movie_id=movie_from_db.id).first()
+                    user_movie_link = data_manager.get_user_movie_link(user_id=user_id, movie_id=movie_from_db.id)
                     if user_movie_link and user_movie_link.user_rating is not None:
                         rating5_for_template = user_movie_link.user_rating
 
@@ -543,8 +546,12 @@ def update_movie_rating(user_id, movie_id):
         flash('You can only edit ratings for your own movie list.', 'danger')
         return redirect(url_for('home'))
 
-    movie = Movie.query.get_or_404(movie_id)
-    user_movie_link = UserMovie.query.filter_by(user_id=g.user.id, movie_id=movie.id).first()
+    movie = data_manager.get_movie_by_id(movie_id)
+    if not movie:
+        flash(f'Movie with ID {movie_id} not found.', 'danger')
+        return redirect(url_for('home'))
+
+    user_movie_link = data_manager.get_user_movie_link(user_id=g.user.id, movie_id=movie.id)
 
     if not user_movie_link:
         flash(f'Movie "{movie.title}" is not in your list. You can add it first.', 'warning')
@@ -612,8 +619,11 @@ def movie_details(movie_id):
     Movie details with comments (JSON endpoint).
     Provides movie details and its associated comments as a JSON response.
     """
-    movie = Movie.query.get_or_404(movie_id)
-    comments = Comment.query.filter_by(movie_id=movie_id).order_by(Comment.created_at.desc()).all()
+    movie = data_manager.get_movie_by_id(movie_id)
+    if not movie:
+        return jsonify({'error': 'Movie not found'}), 404
+
+    comments = data_manager.get_comments_for_movie(movie_id)
     
     return jsonify({
         'movie': {
@@ -653,15 +663,13 @@ def add_movie_comment(movie_id):
     if not text:
         return jsonify({'success': False, 'message': 'Comment cannot be empty.'})
     
-    comment = Comment(
-        movie_id=movie_id,
-        user_id=session['user_id'],
-        text=text
-    )
-    db.session.add(comment)
-    db.session.commit()
+    new_comment = data_manager.add_comment(movie_id=movie_id, user_id=session['user_id'], text=text)
     
-    return jsonify({'success': True})
+    if new_comment:
+        return jsonify({'success': True, 'comment_id': new_comment.id})
+    else:
+        # Specific error logging is done within data_manager.add_comment
+        return jsonify({'success': False, 'message': 'Error adding comment.'}), 500
 
 @app.route('/api/docs')
 def api_docs():
@@ -709,12 +717,16 @@ def movie_page(movie_id):
               Die gerenderte Detailseite des Films oder 404/500 bei Fehlern.
     """
     try:
-        movie = Movie.query.get_or_404(movie_id)
+        movie = data_manager.get_movie_by_id(movie_id)
+        if not movie:
+            current_app.logger.warning(f"Movie with ID {movie_id} not found for movie_page.")
+            return render_template('404.html'), 404
+
         current_user_specific_rating = None
         is_movie_in_user_list = False
 
         if g.user:
-            user_movie_link = UserMovie.query.filter_by(user_id=g.user.id, movie_id=movie.id).first()
+            user_movie_link = data_manager.get_user_movie_link(user_id=g.user.id, movie_id=movie.id)
             if user_movie_link:
                 is_movie_in_user_list = True
                 current_user_specific_rating = user_movie_link.user_rating
@@ -745,9 +757,27 @@ def add_movie_comment_page(movie_id):
     # We still need user_id from session.
     user_id_from_session = session['user_id']
 
-    text = request.form.get('text', '').strip()
+    # text = request.form.get('text', '').strip() # Alt: Formularbasierte Annahme
+    current_app.logger.debug(f"Request headers: {request.headers}") # Temporäres Logging
+    current_app.logger.debug(f"Request data raw: {request.data}") # Temporäres Logging
+    data = request.get_json() # Neu: JSON-basierte Annahme
+    current_app.logger.debug(f"Request data JSON: {data}") # Temporäres Logging
+
+    if not data:
+        flash('Invalid request data.', 'danger')
+        current_app.logger.warning("add_movie_comment_page: No JSON data received.") # Temporäres Logging
+        return redirect(url_for('movie_page', movie_id=movie_id))
+
+    text = data.get('comment_text', '').strip()
+    current_app.logger.debug(f"Extracted text: '{text}'") # Temporäres Logging
+
     if not text:
         flash('Comment cannot be empty.', 'warning')
+        current_app.logger.warning(f"add_movie_comment_page: Comment text is empty after processing. Original data: {data}") # Temporäres Logging
+        # Für einen JSON Request wäre eine JSON-Antwort besser, aber da dies von einer Formular-
+        # ähnlichen Interaktion auf der Detailseite kommt, die per JS umgeleitet wird,
+        # ist ein redirect mit flash hier ggf. noch akzeptabel, obwohl das JS schon eine Fehlermeldung anzeigt.
+        # Idealerweise würde das JS die flash-Nachricht vom redirect abfangen oder die Route gäbe JSON zurück.
         return redirect(url_for('movie_page', movie_id=movie_id))
 
     new_comment = data_manager.add_comment(movie_id=movie_id, user_id=user_id_from_session, text=text)
@@ -776,7 +806,7 @@ def add_movie_to_list(movie_id):
     success = data_manager.add_existing_movie_to_user_list(user_id=g.user.id, movie_id=movie_id)
 
     if success:
-        movie_title_query = Movie.query.get(movie_id)
+        movie_title_query = data_manager.get_movie_by_id(movie_id)
         movie_title = movie_title_query.title if movie_title_query else f"ID {movie_id}"
         flash(f"'{movie_title}' has been added to your list.", 'success')
     else:
@@ -814,7 +844,7 @@ def get_ai_movie_recommendations_route(movie_id):
     Ruft KI-basierte Filmempfehlungen für eine bestimmte movie_id ab.
     Gibt eine JSON-Antwort mit Empfehlungen oder einer Fehlermeldung zurück.
     """
-    movie = Movie.query.get(movie_id)
+    movie = data_manager.get_movie_by_id(movie_id)
     if not movie:
         return jsonify({'success': False, 'message': 'Movie not found.'}), 404
 
