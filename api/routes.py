@@ -12,6 +12,7 @@ from datamanager.sqlite_data_manager import SQLiteDataManager
 from functools import wraps
 import time
 from models import User, Movie, Comment
+import traceback
 
 # Umgebungsvariablen laden (falls noch nicht global geschehen oder zur Sicherheit)
 load_dotenv()
@@ -84,10 +85,12 @@ def handle_api_error(f):
         except Exception as e:
             # Log API error for server-side diagnostics.
             # Logge API-Fehler für serverseitige Diagnose.
-            current_app.logger.error(f"API Error: {str(e)} / API-Fehler: {str(e)}")
+            current_app.logger.error(f"API Error in endpoint '{f.__name__}': {str(e)} / API-Fehler im Endpunkt '{f.__name__}': {str(e)}", exc_info=True)
+            # traceback.print_exc() # Alternative for more detailed local debugging / Alternative für detaillierteres lokales Debugging
             return jsonify({
-                'error': 'Internal Server Error',
-                'message': str(e)
+                'success': False, # Standardized field / Standardisiertes Feld
+                'message': 'An internal server error occurred.', # User-friendly message / Benutzerfreundliche Nachricht
+                # 'error_details': str(e) # Potentially include for dev/staging, remove for production / Potenziell für Dev/Staging einfügen, für Produktion entfernen
             }), 500
     return decorated_function
 
@@ -117,9 +120,11 @@ def get_users():
             'name': user_obj.name,
             'movie_count': len(user_obj.movies) # Requires user.movies to be loaded
         })
+    current_app.logger.info(f"Successfully retrieved {len(users_list)} users for /api/users endpoint.")
     return jsonify({
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
         'users': users_list
-    })
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/users/<int:user_id>')
 @handle_api_error
@@ -143,7 +148,7 @@ def get_user(user_id):
     """
     user = data_manager.get_user_by_id(user_id)
     if not user:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'success': False, 'message': 'User not found'}), 404 # Standardized error / Standardisierter Fehler
     
     # Hole die Filme des Benutzers separat, um die Datenstruktur beizubehalten
     # user.movies wird hier direkt verwendet, was okay ist, wenn User-Objekt vom DM kommt
@@ -160,12 +165,13 @@ def get_user(user_id):
     } for um_relation in user.movies] # user.movies ist die UserMovie Collection
 
     return jsonify({
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
         'user': {
             'id': user.id,
             'name': user.name,
             'movies': user_movies_data
         }
-    })
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/users/<int:user_id>/movies')
 @handle_api_error
@@ -189,7 +195,7 @@ def get_user_movies(user_id):
     """
     user = data_manager.get_user_by_id(user_id) # Erst Benutzer prüfen
     if not user:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'success': False, 'message': 'User not found'}), 404 # Standardized error / Standardisierter Fehler
 
     user_movie_relations = data_manager.get_user_movie_relations(user_id)
     
@@ -207,8 +213,11 @@ def get_user_movies(user_id):
         })
 
     return jsonify({
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
+        'user_id': user.id, # Include user_id for context / user_id für Kontext einfügen
+        'user_name': user.name, # Include user_name for context / user_name für Kontext einfügen
         'movies': movies_data
-    })
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/movies')
 @handle_api_error
@@ -224,6 +233,7 @@ def get_movies():
     """
     movies_from_db = data_manager.get_all_movies()
     return jsonify({
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
         'movies': [{
             'id': movie.id,
             'title': movie.title,
@@ -233,7 +243,7 @@ def get_movies():
             'community_rating_count': movie.community_rating_count,
             'poster_url': movie.poster_url
         } for movie in movies_from_db]
-    })
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/movies/<int:movie_id>')
 @handle_api_error
@@ -257,7 +267,7 @@ def get_movie(movie_id):
     """
     movie = data_manager.get_movie_by_id(movie_id)
     if not movie:
-        return jsonify({'error': 'Movie not found'}), 404
+        return jsonify({'success': False, 'message': 'Movie not found'}), 404 # Standardized error / Standardisierter Fehler
 
     # Kommentare separat laden, um die Struktur beizubehalten
     comments_from_db = data_manager.get_comments_for_movie(movie_id)
@@ -270,6 +280,7 @@ def get_movie(movie_id):
     } for c in comments_from_db]
 
     return jsonify({
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
         'movie': {
             'id': movie.id,
             'title': movie.title,
@@ -291,7 +302,7 @@ def get_movie(movie_id):
             'imdb_id': movie.imdb_id,
             'comments': comments_data
         }
-    })
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/movies/<int:movie_id>/comments')
 @handle_api_error
@@ -318,18 +329,22 @@ def get_movie_comments(movie_id):
     # Wenn hier ein 404 gewünscht ist, falls der Film nicht existiert, muss der Film zuerst geladen werden.
     movie = data_manager.get_movie_by_id(movie_id)
     if not movie:
-        return jsonify({'error': 'Movie not found'}), 404
+        return jsonify({'success': False, 'message': 'Movie not found'}), 404 # Standardized error / Standardisierter Fehler
 
     comments_from_db = data_manager.get_comments_for_movie(movie_id)
+    comments_data = [{
+        'id': c.id,
+        'text': c.text,
+        'user': c.user.name, # Annahme: c.user Relation ist geladen
+        'created_at': c.created_at.isoformat(),
+        'likes_count': c.likes_count
+    } for c in comments_from_db]
+    
     return jsonify({
-        'comments': [{
-            'id': c.id,
-            'text': c.text,
-            'user': c.user.name, # Annahme: c.user Relation ist geladen
-            'created_at': c.created_at.isoformat(),
-            'likes_count': c.likes_count
-        } for c in comments_from_db]
-    })
+        'success': True, # Added for consistency / Für Konsistenz hinzugefügt
+        'movie_id': movie_id, # Include movie_id for context / movie_id für Kontext einfügen
+        'comments': comments_data
+    }), 200 # Explicitly set 200 OK / Explizit 200 OK setzen
 
 @api.route('/users/<int:user_id>/movies', methods=['POST'])
 @handle_api_error # Generic error handling / Generische Fehlerbehandlung
@@ -338,9 +353,16 @@ def add_movie_api(user_id):
     POST /api/users/<user_id>/movies
     Fügt einen neuen Film zur Favoritenliste eines Benutzers hinzu.
     Adds a new movie to a user's favorites list.
-    Erwartet JSON mit 'title', 'director', 'year', 'rating', optional 'poster_url', 'imdb_id'.
-    Expects JSON with 'title', 'director', 'year', 'rating', optional 'poster_url', 'imdb_id'.
+    Erwartet JSON mit 'title', optional 'director', 'year', 'rating', 'poster_url', 'imdb_id'.
+    Expects JSON with 'title', optional 'director', 'year', 'rating', 'poster_url', 'imdb_id'.
     """
+    # Check if user exists first
+    # Zuerst prüfen, ob der Benutzer existiert
+    user = data_manager.get_user_by_id(user_id)
+    if not user:
+        current_app.logger.warning(f"Attempt to add movie for non-existent user_id: {user_id}")
+        return jsonify({'success': False, 'message': 'Benutzer nicht gefunden.'}), 404
+
     data = request.get_json() or {}
     title = data.get('title')
     director = data.get('director')
@@ -348,48 +370,95 @@ def add_movie_api(user_id):
     rating_str = data.get('rating') # Rating might be a string / Rating könnte ein String sein
     poster_url = data.get('poster_url')
     imdb_id = data.get('imdb_id') # Added imdb_id to be passed to data_manager
+    # Fields from OMDb for a potentially new global movie, if imdb_id is provided and movie is not yet global
+    # Felder von OMDb für einen potenziell neuen globalen Film, falls imdb_id angegeben ist und der Film noch nicht global ist
+    plot = data.get('plot')
+    runtime = data.get('runtime')
+    awards = data.get('awards')
+    languages = data.get('language') # OMDb uses 'Language' / OMDb verwendet 'Language'
+    genre = data.get('genre')
+    actors = data.get('actors')
+    writer = data.get('writer')
+    country = data.get('country')
+    metascore = data.get('metascore')
+    rated_omdb = data.get('rated') # OMDb uses 'Rated' / OMDb verwendet 'Rated'
+    omdb_rating_for_community_str = data.get('omdb_initial_rating_5_star') # e.g. from a previous OMDb lookup, scaled to 5 stars / z.B. von einer vorherigen OMDb-Abfrage, auf 5 Sterne skaliert
 
     if not title:
-        return jsonify({'error': 'Title is required. / Titel ist erforderlich.'}), 400
+        return jsonify({'success': False, 'message': 'Titel ist erforderlich.'}), 400
 
     year = None
     if year_str:
         try:
             year = int(year_str)
         except ValueError:
-            return jsonify({'error': 'Invalid year format. Must be an integer. / Ungültiges Jahresformat. Muss eine ganze Zahl sein.'}), 400
+            return jsonify({'success': False, 'message': 'Ungültiges Jahresformat. Muss eine ganze Zahl sein.'}), 400
 
-    rating = None
-    if rating_str is not None: # Allow empty string or null to be ignored, but validate if present
+    rating = None # User's personal rating for the movie / Persönliche Bewertung des Benutzers für den Film
+    if rating_str is not None: 
         try:
             rating = float(rating_str)
             if not (0 <= rating <= 5):
-                 return jsonify({'error': 'Rating must be between 0 and 5. / Bewertung muss zwischen 0 und 5 liegen.'}), 400
+                 return jsonify({'success': False, 'message': 'Bewertung muss zwischen 0 und 5 liegen.'}), 400
         except ValueError:
-            return jsonify({'error': 'Invalid rating format. Must be a number. / Ungültiges Bewertungsformat. Muss eine Zahl sein.'}), 400
+            return jsonify({'success': False, 'message': 'Ungültiges Bewertungsformat. Muss eine Zahl sein.'}), 400
+    
+    omdb_rating_for_community_param = None
+    if omdb_rating_for_community_str:
+        try:
+            omdb_rating_for_community_param = float(omdb_rating_for_community_str)
+            if not (0 <= omdb_rating_for_community_param <= 5):
+                omdb_rating_for_community_param = None # Reset if invalid / Bei Ungültigkeit zurücksetzen
+        except ValueError:
+            omdb_rating_for_community_param = None # Ignore if not a valid float / Bei ungültigem Float ignorieren
 
-    # Daten an DataManager übergeben, der die Logik für das Hinzufügen oder Verknüpfen übernimmt
-    # Pass data to DataManager, which handles logic for adding or linking
-    # Beachte: add_movie im data_manager erwartet mehr Felder, hier müssen wir entscheiden, welche API annimmt und welche ggf. None sind
-    # Note: add_movie in data_manager expects more fields, here we must decide which the API accepts and which might be None
-    movie = data_manager.add_movie(
+    # Call data_manager.add_movie, which handles both adding the movie globally (if new and OMDb data provided)
+    # and linking it to the user. It also updates/calculates community rating.
+    # Rufe data_manager.add_movie auf, das sowohl das globale Hinzufügen des Films (falls neu und OMDb-Daten vorhanden)
+    # als auch die Verknüpfung mit dem Benutzer übernimmt. Es aktualisiert/berechnet auch das Community-Rating.
+    user_movie_link_object = data_manager.add_movie(
         user_id=user_id, 
         title=title, 
         director=director, 
         year=year, 
-        rating=rating, 
+        user_specific_rating=rating, # Pass user's rating here / Hier die Bewertung des Benutzers übergeben
         poster_url=poster_url, 
-        imdb_id=imdb_id
-        # Andere Felder wie plot, runtime etc. werden hier nicht von der API angenommen und sind daher None im data_manager
-        # Other fields like plot, runtime etc. are not accepted by this API endpoint and will be None in the data_manager
+        imdb_id=imdb_id,
+        plot=plot,
+        runtime=runtime,
+        awards=awards,
+        languages=languages,
+        genre=genre,
+        actors=actors,
+        writer=writer,
+        country=country,
+        metascore=metascore,
+        rated=rated_omdb,
+        omdb_rating_for_community=omdb_rating_for_community_param # This is the initial 0-5 star OMDb rating for community calculation
+                                                                # Dies ist das initiale 0-5 Sterne OMDb-Rating für die Community-Berechnung
     )
     
-    if movie:
-        return jsonify({'message': 'Movie added successfully. / Film erfolgreich hinzugefügt.', 'movie_id': movie.id}), 201
+    if user_movie_link_object and user_movie_link_object.movie:
+        current_app.logger.info(f"Movie {user_movie_link_object.movie.id} ('{title}') successfully added to user {user_id}'s list.")
+        return jsonify({
+            'success': True,
+            'message': 'Film erfolgreich zur Benutzerliste hinzugefügt.',
+            'movie_id': user_movie_link_object.movie.id,
+            'user_movie_id': user_movie_link_object.id # ID of the UserMovie link / ID der UserMovie-Verknüpfung
+        }), 201
     else:
-        # Specific error should be logged by data_manager
-        # Ein spezifischer Fehler sollte vom data_manager geloggt werden
-        return jsonify({'error': 'Could not add movie. It might already be in the list or an internal error occurred. / Film konnte nicht hinzugefügt werden. Er könnte bereits in der Liste sein oder ein interner Fehler ist aufgetreten.'}), 400
+        # Specific error should be logged by data_manager.add_movie
+        # data_manager.add_movie returns None if movie not found (even after trying OMDb) or other critical errors.
+        # Or if the user_movie link could not be created (e.g. already exists and not updatable by this simple add)
+        # Ein spezifischer Fehler sollte von data_manager.add_movie geloggt werden.
+        # data_manager.add_movie gibt None zurück, wenn der Film nicht gefunden wurde (auch nach OMDb-Versuch) oder andere kritische Fehler auftreten.
+        # Oder wenn die UserMovie-Verknüpfung nicht erstellt werden konnte (z.B. existiert bereits und ist durch dieses einfache Hinzufügen nicht aktualisierbar)
+        current_app.logger.warning(f"Could not add movie '{title}' for user {user_id}. data_manager.add_movie returned None.")
+        return jsonify({
+            'success': False, 
+            'message': 'Film konnte nicht hinzugefügt werden. Möglicherweise existiert er bereits in der Liste oder ein interner Fehler ist aufgetreten.'
+        }), 409 # 409 Conflict is a good general status if it might already exist, or 400/500 for other issues.
+                 # 409 Conflict ist ein guter allgemeiner Status, wenn es möglicherweise bereits existiert, oder 400/500 für andere Probleme.
 
 @api.route('/omdb_proxy')
 @handle_api_error # Use error handling / Fehlerbehandlung nutzen
@@ -417,7 +486,7 @@ def omdb_proxy():
         # Log error if OMDb API key is not configured.
         # Logge Fehler, wenn der OMDb-API-Schlüssel nicht konfiguriert ist.
         current_app.logger.error("OMDb API key is not configured on the server for the proxy.")
-        return jsonify({'error': 'OMDb API key not configured on server.'}), 503
+        return jsonify({'success': False, 'message': 'OMDb API key not configured on server.'}), 503
 
     title = request.args.get('title')
     imdb_id = request.args.get('imdb_id')
@@ -425,7 +494,7 @@ def omdb_proxy():
     plot = request.args.get('plot', 'short') # Default to short plot / Standardmäßig kurze Handlung
 
     if not title and not imdb_id:
-        return jsonify({'error': 'Missing query parameter: title or imdb_id required.'}), 400
+        return jsonify({'success': False, 'message': 'Missing query parameter: title or imdb_id required.'}), 400
 
     params = {
         'apikey': OMDB_API_KEY,
@@ -446,30 +515,47 @@ def omdb_proxy():
         response = requests.get('http://www.omdbapi.com/', params=params, timeout=10)
         response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx) / HTTPError für schlechte Antworten auslösen (4xx oder 5xx)
         omdb_data = response.json()
-        # Log OMDb proxy response success.
-        # Logge erfolgreiche OMDb-Proxy-Antwort.
-        current_app.logger.info(f"OMDb Proxy Response for '{title or imdb_id}': {omdb_data.get('Response')}")
-        return jsonify(omdb_data)
+        
+        if omdb_data.get('Response') == 'True':
+            # Log OMDb proxy response success.
+            # Logge erfolgreiche OMDb-Proxy-Antwort.
+            current_app.logger.info(f"OMDb Proxy Response for '{title or imdb_id}': True")
+            return jsonify({'success': True, 'data': omdb_data})
+        else:
+            # OMDb returned Response: False, but HTTP status might be 200
+            # OMDb gab Response: False zurück, aber HTTP-Status könnte 200 sein
+            error_message_from_omdb = omdb_data.get('Error', 'OMDb_RESPONSE_FALSE_NO_SPECIFIC_ERROR_FIELD') # More specific default
+            current_app.logger.warning(f"OMDb Proxy Response for '{title or imdb_id}': False, Error: {error_message_from_omdb}, Full OMDb Response: {omdb_data}")
+            return jsonify({'success': False, 'message': error_message_from_omdb, 'data': omdb_data}), 200
+
     except requests.exceptions.Timeout:
         # Log OMDb proxy timeout.
         # Logge OMDb-Proxy-Zeitüberschreitung.
         current_app.logger.warning(f"OMDb Proxy request timed out for '{title or imdb_id}'.")
-        return jsonify({'error': 'OMDb API request timed out.'}), 504
+        return jsonify({'success': False, 'message': 'OMDb API request timed out.'}), 504 # Gateway Timeout
     except requests.exceptions.HTTPError as http_err:
         # Log OMDb proxy HTTP error.
         # Logge OMDb-Proxy-HTTP-Fehler.
-        current_app.logger.error(f"OMDb Proxy HTTP error for '{title or imdb_id}': {http_err}. Response: {response.text}")
-        return jsonify({'error': f'OMDb API error: {http_err}', 'omdb_response': response.text}), response.status_code
-    except requests.exceptions.RequestException as req_err:
+        current_app.logger.error(f"OMDb Proxy HTTP error for '{title or imdb_id}': {http_err}. Response text: {response.text}")
+        error_message = f'OMDb API HTTP error: {http_err}'
+        omdb_response_data = None
+        try:
+            omdb_response_data = response.json() # Try to parse error response as JSON
+            if isinstance(omdb_response_data, dict) and 'Error' in omdb_response_data:
+                error_message = omdb_response_data['Error'] # Use specific error from OMDb JSON
+        except ValueError: # response.text was not JSON
+            pass # error_message remains the generic HTTP error
+        return jsonify({'success': False, 'message': error_message, 'omdb_response_text': response.text, 'omdb_error_data': omdb_response_data}), response.status_code
+    except requests.exceptions.RequestException as req_err: # Other network issues
         # Log OMDb proxy request exception.
         # Logge OMDb-Proxy-Anfrageausnahme.
         current_app.logger.error(f"OMDb Proxy request failed for '{title or imdb_id}': {req_err}")
-        return jsonify({'error': f'Failed to connect to OMDb API: {req_err}'}), 502
+        return jsonify({'success': False, 'message': f'Failed to connect to OMDb API: {req_err}'}), 502
     except ValueError as json_err: # Includes JSONDecodeError
         # Log OMDb proxy JSON decoding error.
         # Logge OMDb-Proxy-JSON-Dekodierungsfehler.
         current_app.logger.error(f"OMDb Proxy JSON decoding error for '{title or imdb_id}': {json_err}. Response: {response.text if 'response' in locals() else 'N/A'}")
-        return jsonify({'error': 'Failed to decode OMDb API response.', 'details': str(json_err)}), 500
+        return jsonify({'success': False, 'message': 'Failed to decode OMDb API response.', 'details': str(json_err)}), 500
 
 @api.route('/check_or_create_movie_by_imdb', methods=['POST'])
 @handle_api_error
@@ -485,18 +571,18 @@ def check_or_create_movie_by_imdb():
     """
     data = request.get_json()
     if not data:
-        return jsonify({'success': False, 'message': 'No data provided. / Keine Daten übermittelt.'}), 400
+        return jsonify({'success': False, 'message': 'No data provided.'}), 400
 
     imdb_id = data.get('imdbID') # OMDb provides 'imdbID' / OMDb liefert 'imdbID'
     if not imdb_id:
-        return jsonify({'success': False, 'message': 'imdbID is required. / imdbID ist erforderlich.'}), 400
+        return jsonify({'success': False, 'message': 'imdbID is required.'}), 400
 
     # Try to find the movie by IMDb ID
     # Versuche, den Film anhand der IMDb-ID zu finden
     movie = data_manager.get_movie_by_imdb_id(imdb_id)
     if movie:
         current_app.logger.info(f"Movie with imdbID {imdb_id} found in DB (ID: {movie.id}). Status: exists. / Film mit imdbID {imdb_id} in DB gefunden (ID: {movie.id}). Status: exists.")
-        return jsonify({'success': True, 'status': 'exists', 'movie_id': movie.id}), 200
+        return jsonify({'success': True, 'data': {'status': 'exists', 'movie_id': movie.id}}), 200
     else:
         # Movie does not exist, so add it globally
         # The 'data' should be the complete OMDb data
@@ -506,9 +592,9 @@ def check_or_create_movie_by_imdb():
         new_movie = data_manager.add_movie_globally(movie_data=data)
         if new_movie:
             current_app.logger.info(f"Movie with imdbID {imdb_id} created globally (New ID: {new_movie.id}). Status: created. / Film mit imdbID {imdb_id} global erstellt (Neue ID: {new_movie.id}). Status: created.")
-            return jsonify({'success': True, 'status': 'created', 'movie_id': new_movie.id}), 201
+            return jsonify({'success': True, 'data': {'status': 'created', 'movie_id': new_movie.id}}), 201
         else:
             # Error during addition should have been logged by data_manager
             # Fehler beim Hinzufügen sollte vom data_manager geloggt worden sein
             current_app.logger.error(f"Failed to create movie globally with imdbID {imdb_id} via API. DataManager returned None. / Fehler beim globalen Erstellen von Film mit imdbID {imdb_id} via API. DataManager gab None zurück.")
-            return jsonify({'success': False, 'message': 'Failed to create new movie globally. Check server logs. / Fehler beim globalen Erstellen des neuen Films. Server-Logs prüfen.'}), 500
+            return jsonify({'success': False, 'message': 'Failed to create new movie globally. Check server logs.'}), 500

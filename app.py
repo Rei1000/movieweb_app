@@ -78,6 +78,16 @@ DEFAULT_AI_TEMPERATURE_RECOMMEND = 0.7
 DEFAULT_AI_TEMPERATURE_INTERPRET = 0.3 # Lower temperature for more precise interpretation. / Niedrigere Temperatur für präzisere Interpretation.
 NO_CLEAR_MOVIE_TITLE_MARKER = "NO_CLEAR_MOVIE_TITLE_FOUND_INTERNAL" # Internal marker for when AI can't find a title. / Interner Marker, wenn die KI keinen Titel finden kann.
 
+# --- Constants for AI response handling and error messages ---
+# --- Konstanten für die Handhabung von KI-Antworten und Fehlermeldungen ---
+AI_MODEL_FOR_REQUESTS = "openai/gpt-3.5-turbo"
+AI_MSG_OPENROUTER_KEY_MISSING = "OpenRouter API Key not configured on server." # English only for user-facing
+AI_MSG_REQUEST_TIMEOUT = "AI service request timed out. Please try again later." # English only for user-facing
+AI_MSG_CONNECTION_ERROR_GENERIC = "Error connecting to AI service." # English only for user-facing
+AI_MSG_API_ERROR_DETAILED_TEMPLATE = "AI API Error: {error_message}." # English only for user-facing
+AI_MSG_UNEXPECTED_ERROR_TEMPLATE = "An unexpected error occurred with the AI service: {error_message}." # English only for user-facing
+AI_MSG_NO_SUGGESTIONS_LIST = "AI did not return any suggestions." # English only for user-facing
+
 # --- Helper function for AI title interpretation ---
 # --- Hilfsfunktion für KI-Titelinterpretation ---
 def get_ai_interpreted_movie_title(user_input: str, temperature: float = DEFAULT_AI_TEMPERATURE_INTERPRET) -> Optional[str]:
@@ -181,8 +191,10 @@ def login():
     
     if user:
         session['user_id'] = user.id
-        return jsonify({'success': True, 'redirect': f'/users/{user.id}'})
-    return jsonify({'success': False, 'message': 'User not found.'})
+        current_app.logger.info(f"User '{username}' (ID: {user.id}) logged in successfully.")
+        return jsonify({'success': True, 'redirect': f'/users/{user.id}', 'message': 'Login successful.'}), 200
+    current_app.logger.warning(f"Failed login attempt for username '{username}'. User not found.")
+    return jsonify({'success': False, 'message': 'User not found. Please check your username or register.'}), 401 # 401 Unauthorized
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -201,10 +213,22 @@ def register():
     if not new_user:
         # add_user returns None if name is empty or user already exists.
         # We can rely on the logging within add_user for specific reasons.
-        return jsonify({'success': False, 'message': 'Username invalid or already exists.'}) # Generic message
+        # Determine if it was an empty username or a duplicate for a slightly more specific log here, if possible,
+        # but for the user, a generic message is okay as data_manager might have more specific internal logging.
+        # Bestimme, ob es ein leerer Benutzername oder ein Duplikat war für ein etwas spezifischeres Log hier, falls möglich,
+        # aber für den Benutzer ist eine generische Nachricht in Ordnung, da der data_manager möglicherweise spezifischere interne Protokollierung hat.
+        if not username: # Explicit check for empty username again, for clarity
+            current_app.logger.warning("Registration attempt with empty username.")
+            # Message could be more specific, but current one covers it broadly.
+            # Nachricht könnte spezifischer sein, aber aktuelle deckt es breit ab.
+            return jsonify({'success': False, 'message': 'Username cannot be empty.'}), 400 # Bad Request
+        else:
+            current_app.logger.warning(f"Registration attempt failed for username '{username}'. User might already exist or name is invalid.")
+            return jsonify({'success': False, 'message': 'Username invalid or already exists. Please choose a different name.'}), 409 # Conflict or 400 Bad Request
     
     session['user_id'] = new_user.id
-    return jsonify({'success': True, 'redirect': f'/users/{new_user.id}'})
+    current_app.logger.info(f"User '{new_user.name}' (ID: {new_user.id}) registered and logged in successfully.")
+    return jsonify({'success': True, 'redirect': f'/users/{new_user.id}', 'message': 'Registration successful! You are now logged in.'}), 201 # 201 Created
 
 @app.route('/logout')
 def logout():
@@ -281,6 +305,248 @@ def add_user(): # Hinzugefügt: Fehlende Funktion
                 flash(f'User "{name}" already exists or is invalid.', 'warning') # Generic message
     return render_template('add_user.html') # Erstellt eine einfache Vorlage oder leitet um
 
+# --- Helper functions for add_movie GET route ---
+# --- Hilfsfunktionen für die add_movie GET-Route ---
+def _prepare_movie_details_from_db_for_add_template(movie_id: int, user_id: int) -> dict:
+    """
+    Prepares movie details from the local database for the 'add_movie' template.
+    Bereitet Filmdetails aus der lokalen Datenbank für das 'add_movie'-Template vor.
+
+    Args:
+        movie_id (int): The ID of the movie to load from the database. / Die ID des Films, der aus der DB geladen werden soll.
+        user_id (int): The ID of the current user (for checking existing ratings). / Die ID des aktuellen Benutzers (zur Prüfung existierender Bewertungen).
+
+    Returns:
+        dict: A dictionary containing template variables using keys expected by the template (omdb, omdb_details, rating5).
+              Ein Wörterbuch mit Template-Variablen, das vom Template erwartete Schlüssel verwendet (omdb, omdb_details, rating5).
+    """
+    context = {
+        'omdb': None, # Changed from omdb_data_for_template
+        'omdb_details': None, # Changed from omdb_details_for_template
+        'rating5': None, # Changed from rating5_for_template
+        'user_search_input_value_update': None, # To prefill search box
+        'flash_message': None # Tuple (message, category)
+    }
+    movie_from_db = data_manager.get_movie_by_id(movie_id)
+    if movie_from_db:
+        context['omdb'] = {
+            'Response': 'True',
+            'Title': movie_from_db.title,
+            'Year': str(movie_from_db.year) if movie_from_db.year else 'N/A',
+            'Poster': movie_from_db.poster_url,
+            'Director': movie_from_db.director,
+            'imdbRating': str(movie_from_db.community_rating * 2) if movie_from_db.community_rating is not None else 'N/A'
+        }
+        context['omdb_details'] = {
+            'plot': movie_from_db.plot,
+            'runtime': movie_from_db.runtime,
+            'awards': movie_from_db.awards,
+            'languages': movie_from_db.language,
+            'genre': movie_from_db.genre,
+            'actors': movie_from_db.actors,
+            'writer': movie_from_db.writer,
+            'country': movie_from_db.country,
+            'metascore': movie_from_db.metascore,
+            'rated': movie_from_db.rated_omdb,
+            'imdb_id': movie_from_db.imdb_id
+        }
+        if movie_from_db.community_rating is not None:
+            context['rating5'] = movie_from_db.community_rating
+        else:
+            user_movie_link = data_manager.get_user_movie_link(user_id=user_id, movie_id=movie_from_db.id)
+            if user_movie_link and user_movie_link.user_rating is not None:
+                context['rating5'] = user_movie_link.user_rating
+        context['user_search_input_value_update'] = movie_from_db.title
+    else:
+        context['flash_message'] = (f'Movie with ID {movie_id} not found in database.', 'danger')
+    return context
+
+def _fetch_movie_details_from_omdb_for_add_template(title_for_omdb_search: str) -> dict:
+    """
+    Fetches movie details from OMDb API for the 'add_movie' template.
+    Ruft Filmdetails von der OMDb-API für das 'add_movie'-Template ab.
+
+    Args:
+        title_for_omdb_search (str): The movie title to search on OMDb. / Der Filmtitel für die OMDb-Suche.
+
+    Returns:
+        dict: A dictionary containing template variables using keys expected by the template (omdb, omdb_details, rating5).
+              Ein Wörterbuch mit Template-Variablen, das vom Template erwartete Schlüssel verwendet (omdb, omdb_details, rating5).
+    """
+    context = {
+        'omdb': None, # Changed from omdb_data_for_template
+        'omdb_details': None, # Changed from omdb_details_for_template
+        'rating5': None, # Changed from rating5_for_template
+        'ai_message': None, # For OMDb errors
+        'flash_message': None # Tuple (message, category)
+    }
+    params = {'apikey': OMDB_API_KEY, 't': title_for_omdb_search}
+    omdb_api_response_data = None # To store the actual response from OMDb API
+    try:
+        resp = requests.get('http://www.omdbapi.com/', params=params, timeout=10)
+        resp.raise_for_status()
+        omdb_api_response_data = resp.json()
+        context['omdb'] = omdb_api_response_data # Store full OMDb response under 'omdb' key
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"OMDb API request failed for title '{title_for_omdb_search}': {e}")
+        omdb_api_response_data = {'Response': 'False', 'Error': str(e)}
+        context['omdb'] = omdb_api_response_data # Store error response under 'omdb' key
+        context['flash_message'] = (f"Error connecting to OMDb for title '{title_for_omdb_search}': {str(e)[:100]}.", "danger")
+
+    if omdb_api_response_data and omdb_api_response_data.get('Response') == 'True':
+        context['omdb_details'] = {
+            'plot': omdb_api_response_data.get('Plot'),
+            'runtime': omdb_api_response_data.get('Runtime'),
+            'awards': omdb_api_response_data.get('Awards'),
+            'languages': omdb_api_response_data.get('Language'),
+            'genre': omdb_api_response_data.get('Genre'),
+            'actors': omdb_api_response_data.get('Actors'),
+            'writer': omdb_api_response_data.get('Writer'),
+            'country': omdb_api_response_data.get('Country'),
+            'metascore': omdb_api_response_data.get('Metascore'),
+            'rated': omdb_api_response_data.get('Rated'),
+            'imdb_id': omdb_api_response_data.get('imdbID')
+        }
+        raw_rating = omdb_api_response_data.get('imdbRating')
+        if raw_rating and raw_rating != 'N/A':
+            try:
+                rating10 = float(raw_rating)
+                context['rating5'] = round(rating10 / 2 * 2) / 2
+            except ValueError:
+                pass # rating5 remains None
+    elif omdb_api_response_data: # Response is 'False' or other issues
+        error_msg_from_omdb = omdb_api_response_data.get('Error', 'Unknown OMDb error')
+        context['ai_message'] = f"OMDb could not find details for the title: '{title_for_omdb_search}'. Error: {error_msg_from_omdb}"
+        current_app.logger.warning(f"OMDb search failed for title '{title_for_omdb_search}': {error_msg_from_omdb}")
+    
+    return context
+
+def _get_ai_suggestion_for_add_movie_template(user_search_input: str) -> dict:
+    """
+    Gets AI-interpreted movie title suggestion for the 'add_movie' template.
+    Holt einen KI-interpretierten Filmtitelvorschlag für das 'add_movie'-Template.
+
+    Args:
+        user_search_input (str): The user's raw search input. / Die rohe Sucheingabe des Benutzers.
+
+    Returns:
+        dict: A dictionary containing template variables ('ai_suggested_title', 'ai_message').
+              Ein Wörterbuch mit Template-Variablen ('ai_suggested_title', 'ai_message').
+    """
+    context = {'ai_suggested_title': None, 'ai_message': None}
+    current_app.logger.info(f"Initiating AI movie search with input: '{user_search_input}' for add_movie.")
+    ki_result = get_ai_interpreted_movie_title(user_search_input)
+
+    if ki_result == NO_CLEAR_MOVIE_TITLE_MARKER or ki_result is None:
+        context['ai_message'] = "AI could not identify a clear movie title. Please try a different title or description."
+        current_app.logger.info(f"AI could not find title for user input: '{user_search_input}' in add_movie.")
+    else:
+        context['ai_suggested_title'] = ki_result
+        current_app.logger.info(f"AI suggested title '{ki_result}' for input '{user_search_input}' in add_movie.")
+    return context
+
+# --- Helper function for add_movie POST route ---
+# --- Hilfsfunktion für die add_movie POST-Route ---
+def _process_add_movie_form(form_data, user_id: int, source_movie_id: Optional[int], original_user_search_input: str) -> tuple[bool, str, Optional[str], Optional[str]]:
+    """
+    Processes the form data submitted to add a movie.
+    Validates input and calls the DataManager to add the movie.
+
+    Verarbeitet die Formulardaten, die zum Hinzufügen eines Films gesendet wurden.
+    Validiert die Eingaben und ruft den DataManager auf, um den Film hinzuzufügen.
+
+    Args:
+        form_data (werkzeug.datastructures.ImmutableMultiDict): The form data from the request.
+                                                               Die Formulardaten aus dem Request.
+        user_id (int): The ID of the user adding the movie. / Die ID des Benutzers, der den Film hinzufügt.
+        source_movie_id (Optional[int]): The ID of the movie from which the add action originated (e.g. recommendations page).
+                                           Die ID des Films, von dem die Hinzufügeaktion ausging (z.B. Empfehlungsseite).
+        original_user_search_input (str): The original search input by the user, for redirect purposes on error.
+                                            Die ursprüngliche Sucheingabe des Benutzers, für Weiterleitungszwecke bei Fehlern.
+
+
+    Returns:
+        tuple[bool, str, Optional[str], Optional[str]]: 
+            - success (bool): True if movie was added successfully, False otherwise.
+                              True, wenn der Film erfolgreich hinzugefügt wurde, sonst False.
+            - message (str): Flash message for the user. / Flash-Nachricht für den Benutzer.
+            - message_category (Optional[str]): Category for the flash message (e.g., 'success', 'danger').
+                                                Kategorie für die Flash-Nachricht (z.B. 'success', 'danger').
+            - redirect_url_on_fail (Optional[str]): URL to redirect to if adding fails and a specific redirect is needed.
+                                                      URL für die Weiterleitung, falls das Hinzufügen fehlschlägt und eine bestimmte Weiterleitung erforderlich ist.
+    """
+    title_from_omdb_form = form_data.get('title_from_omdb', '').strip()
+    if not title_from_omdb_form: 
+        return False, 'Error: Movie title for adding was missing. Please try the search again.', 'danger', url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input)
+
+    director = form_data.get('director', '').strip()
+    year_str = form_data.get('year', '').strip()
+    rating_str = form_data.get('rating', '').strip()
+    poster_url = form_data.get('poster_url', '').strip()
+    plot = form_data.get('plot', '').strip()
+    runtime = form_data.get('runtime', '').strip()
+    awards = form_data.get('awards', '').strip()
+    languages = form_data.get('languages', '').strip()
+    genre = form_data.get('genre', '').strip()
+    actors = form_data.get('actors', '').strip()
+    writer = form_data.get('writer', '').strip()
+    country = form_data.get('country', '').strip()
+    metascore = form_data.get('metascore', '').strip()
+    rated = form_data.get('rated', '').strip()
+    imdb_id = form_data.get('imdb_id', '').strip()
+
+    year = None
+    if year_str and year_str.isdigit():
+        year = int(year_str)
+    
+    rating = None
+    if rating_str:
+        try:
+            rating = float(rating_str)
+            if not (0 <= rating <= 5):
+                return False, 'Rating must be between 0 and 5.', 'warning', url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input)
+        except ValueError:
+            return False, 'Rating must be a numeric value.', 'warning', url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input)
+
+    omdb_suggested_rating_str = form_data.get('omdb_suggested_rating', '')
+    omdb_rating_for_community_param = None
+    if omdb_suggested_rating_str:
+        try:
+            omdb_rating_for_community_param = float(omdb_suggested_rating_str)
+            if not (0 <= omdb_rating_for_community_param <= 5):
+                omdb_rating_for_community_param = None
+        except ValueError:
+            pass
+
+    movie_added_successfully = data_manager.add_movie(
+        user_id,
+        title_from_omdb_form, 
+        director,
+        year,
+        rating,
+        poster_url or None,
+        plot=plot or None,
+        runtime=runtime or None,
+        awards=awards or None,
+        languages=languages or None,
+        genre=genre or None,
+        actors=actors or None,
+        writer=writer or None,
+        country=country or None,
+        metascore=metascore or None,
+        rated=rated or None,
+        imdb_id=imdb_id or None,
+        omdb_rating_for_community=omdb_rating_for_community_param
+    )
+
+    if movie_added_successfully:
+        return True, f"Movie '{title_from_omdb_form}' added successfully.", 'success', None
+    else:
+        fail_redirect_url = url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input)
+        if source_movie_id: # If adding failed but we came from a specific movie page, go back there
+            fail_redirect_url = url_for('movie_page', movie_id=source_movie_id)
+        return False, f"Could not add movie '{title_from_omdb_form}'. It might already be in your list or an error occurred.", 'danger', fail_redirect_url
+
 @app.route('/users/<int:user_id>/add_movie', methods=['GET', 'POST'])
 def add_movie(user_id):
     """
@@ -305,233 +571,106 @@ def add_movie(user_id):
         flash('User not found.', 'danger')
         return redirect(url_for('list_users'))
     
-    # Initial states for template variables
-    # Initialzustände für Template-Variablen
-    user_search_input_value = request.args.get('user_search_input', '')
-    ai_suggested_title = None
-    ai_message = None
-    omdb_data_for_template = None
-    omdb_details_for_template = None
-    rating5_for_template = None
-    show_details_form = False
-    title_for_omdb_search_value = request.args.get('title_for_omdb_search', '').strip()
-    movie_to_add_id_value = request.args.get('movie_to_add_id', type=int)
-    source_movie_id_value = request.args.get('source_movie_id', type=int)
-
-    hide_initial_search_form = False
-
+    # --- Initialize context for template ---
+    # --- Kontext für Template initialisieren ---
+    template_context = {
+        'user': user,
+        'current_year': datetime.now().year,
+        'user_search_input_value': request.args.get('user_search_input', ''),
+        'ai_suggested_title': None,
+        'ai_message': None,
+        'omdb': None, # Changed from omdb_data_for_template
+        'omdb_details': None, # Changed from omdb_details_for_template
+        'rating5': None, # Changed from rating5_for_template
+        'show_details_form': False,
+        'hide_initial_search_form': False,
+        'source_movie_id_for_template': request.args.get('source_movie_id', type=int) # Keep this from request.args
+    }
+    
+    # --- GET Request Logic ---
+    # --- GET-Request-Logik ---
     if request.method == 'GET':
+        movie_to_add_id_value = request.args.get('movie_to_add_id', type=int)
+        title_for_omdb_search_value = request.args.get('title_for_omdb_search', '').strip()
+        user_search_input_original_value = request.args.get('user_search_input', '') # Keep original for prefilling
+
         if movie_to_add_id_value or title_for_omdb_search_value:
-            hide_initial_search_form = True
+            template_context['hide_initial_search_form'] = True
 
         # Phase 2b: Movie ID was passed directly (e.g., from AI recommendations)
         # Phase 2b: Film-ID wurde direkt übergeben (z.B. von KI-Empfehlungen)
         if movie_to_add_id_value:
-            current_app.logger.info(f"User {user_id} will add existing movie_id: {movie_to_add_id_value}")
-            movie_from_db = data_manager.get_movie_by_id(movie_to_add_id_value)
-            if movie_from_db:
-                # Provide data as if it came from OMDb fetch
-                # Daten bereitstellen, als ob sie von einem OMDb-Abruf stammen
-                omdb_data_for_template = {
-                    'Response': 'True',
-                    'Title': movie_from_db.title,
-                    'Year': str(movie_from_db.year) if movie_from_db.year else 'N/A',
-                    'Poster': movie_from_db.poster_url,
-                    'Director': movie_from_db.director,
-                    'imdbRating': str(movie_from_db.community_rating * 2) if movie_from_db.community_rating is not None else 'N/A'
-                }
-                omdb_details_for_template = {
-                    'plot': movie_from_db.plot,
-                    'runtime': movie_from_db.runtime,
-                    'awards': movie_from_db.awards,
-                    'languages': movie_from_db.language,
-                    'genre': movie_from_db.genre,
-                    'actors': movie_from_db.actors,
-                    'writer': movie_from_db.writer,
-                    'country': movie_from_db.country,
-                    'metascore': movie_from_db.metascore,
-                    'rated': movie_from_db.rated_omdb,
-                    'imdb_id': movie_from_db.imdb_id
-                }
-                if movie_from_db.community_rating is not None:
-                    rating5_for_template = movie_from_db.community_rating
-                else:
-                    user_movie_link = data_manager.get_user_movie_link(user_id=user_id, movie_id=movie_from_db.id)
-                    if user_movie_link and user_movie_link.user_rating is not None:
-                        rating5_for_template = user_movie_link.user_rating
+            current_app.logger.info(f"User {user_id} attempting to add existing movie_id: {movie_to_add_id_value}")
+            db_details_context = _prepare_movie_details_from_db_for_add_template(movie_to_add_id_value, user_id)
+            template_context.update(db_details_context) # Update main context
+            if db_details_context.get('flash_message'):
+                flash(db_details_context['flash_message'][0], db_details_context['flash_message'][1])
+                if db_details_context['flash_message'][1] == 'danger': # Critical error, redirect
+                    return redirect(url_for('list_user_movies', user_id=user_id))
+            # Check the 'omdb' key from the helper function's returned context
+            if db_details_context.get('omdb') and db_details_context['omdb'].get('Response') == 'True':
+                template_context['show_details_form'] = True
+            if db_details_context.get('user_search_input_value_update'): # If movie found, update search box
+                 template_context['user_search_input_value'] = db_details_context['user_search_input_value_update']
 
-                show_details_form = True
-                user_search_input_value = movie_from_db.title 
-            else:
-                flash(f'Movie with ID {movie_to_add_id_value} not found in database.', 'danger')
-                return redirect(url_for('list_user_movies', user_id=user_id))
 
         # Phase 2a: User clicked 'Load Movie Details' with AI-suggested title (higher priority)
         # Phase 2a: Benutzer klickte auf 'Filmdetails laden' mit KI-vorgeschlagenem Titel (höhere Priorität)
-        elif 'title_for_omdb_search' in request.args and title_for_omdb_search_value:
-            hide_initial_search_form = True
-            # Log OMDb search initiation.
-            # Logge die Initiierung der OMDb-Suche.
-            current_app.logger.info(f"User {user_id} initiated OMDb search with AI-suggested title: '{title_for_omdb_search_value}'")
-            user_search_input_value = request.args.get('user_search_input', user_search_input_value)
+        elif title_for_omdb_search_value: # Note: 'elif' implies movie_to_add_id_value was not present or handled
+            current_app.logger.info(f"User {user_id} initiated OMDb search with title: '{title_for_omdb_search_value}'")
+            template_context['user_search_input_value'] = user_search_input_original_value # Preserve original search
 
-            params = {'apikey': OMDB_API_KEY, 't': title_for_omdb_search_value}
-            try:
-                resp = requests.get('http://www.omdbapi.com/', params=params, timeout=10)
-                resp.raise_for_status()
-                omdb_data_for_template = resp.json()
-            except requests.exceptions.RequestException as e:
-                # Log OMDb API request failure.
-                # Logge fehlgeschlagene OMDb-API-Anfrage.
-                current_app.logger.error(f"OMDb API request failed for title '{title_for_omdb_search_value}': {e}")
-                omdb_data_for_template = {'Response': 'False', 'Error': str(e)}
-                flash(f"Error connecting to OMDb for title '{title_for_omdb_search_value}': {str(e)[:100]}.", "danger")
+            omdb_fetch_context = _fetch_movie_details_from_omdb_for_add_template(title_for_omdb_search_value)
+            template_context.update(omdb_fetch_context) # Update main context
+            
+            if omdb_fetch_context.get('flash_message'):
+                flash(omdb_fetch_context['flash_message'][0], omdb_fetch_context['flash_message'][1])
+            
+            # Check the 'omdb' key from the helper function's returned context
+            if omdb_fetch_context.get('omdb') and omdb_fetch_context['omdb'].get('Response') == 'True':
+                template_context['show_details_form'] = True
+            else: # OMDb search failed or movie not found by OMDb
+                template_context['show_details_form'] = False
+                # ai_message is already set by _fetch_movie_details_from_omdb_for_add_template if OMDb error
 
-            if omdb_data_for_template and omdb_data_for_template.get('Response') == 'True':
-                show_details_form = True
-                omdb_details_for_template = {
-                    'plot': omdb_data_for_template.get('Plot'),
-                    'runtime': omdb_data_for_template.get('Runtime'),
-                    'awards': omdb_data_for_template.get('Awards'),
-                    'languages': omdb_data_for_template.get('Language'),
-                    'genre': omdb_data_for_template.get('Genre'),
-                    'actors': omdb_data_for_template.get('Actors'),
-                    'writer': omdb_data_for_template.get('Writer'),
-                    'country': omdb_data_for_template.get('Country'),
-                    'metascore': omdb_data_for_template.get('Metascore'),
-                    'rated': omdb_data_for_template.get('Rated'),
-                    'imdb_id': omdb_data_for_template.get('imdbID')
-                }
-                raw_rating = omdb_data_for_template.get('imdbRating')
-                if raw_rating and raw_rating != 'N/A':
-                    try:
-                        rating10 = float(raw_rating)
-                        rating5_for_template = round(rating10 / 2 * 2) / 2
-                    except ValueError:
-                        pass
-            else:
-                error_msg_from_omdb = omdb_data_for_template.get('Error', 'Unknown OMDb error') if omdb_data_for_template else 'No response from OMDb.'
-                ai_message = f"OMDb could not find details for the title: '{title_for_omdb_search_value}'. Error: {error_msg_from_omdb}"
-                # Log OMDb search failure.
-                # Logge fehlgeschlagene OMDb-Suche.
-                current_app.logger.warning(f"OMDb search failed for title '{title_for_omdb_search_value}': {error_msg_from_omdb}")
-                show_details_form = False
-        
         # Phase 1: User entered a search to get AI suggestion (only if not Phase 2)
         # Phase 1: Benutzer gab eine Suche ein, um einen KI-Vorschlag zu erhalten (nur wenn nicht Phase 2)
-        elif 'user_search_input' in request.args and user_search_input_value:
-            # Log AI movie search initiation.
-            # Logge die Initiierung der KI-Filmsuche.
-            current_app.logger.info(f"User {user_id} initiated AI movie search with input: '{user_search_input_value}'")
-            ki_result = get_ai_interpreted_movie_title(user_search_input_value)
+        elif template_context['user_search_input_value']: # Check the initial value from request.args
+            ai_context = _get_ai_suggestion_for_add_movie_template(template_context['user_search_input_value'])
+            template_context.update(ai_context) # Update main context
+            # ai_suggested_title and ai_message are set by the helper
 
-            if ki_result == NO_CLEAR_MOVIE_TITLE_MARKER or ki_result is None:
-                ai_message = "AI could not identify a clear movie title. Please try a different title or description."
-                # Log when AI could not find title.
-                # Logge, wenn die KI keinen Titel finden konnte.
-                current_app.logger.info(f"AI could not find title for user input: '{user_search_input_value}'")
-            else:
-                ai_suggested_title = ki_result
-                # Log AI suggested title.
-                # Logge den von der KI vorgeschlagenen Titel.
-                current_app.logger.info(f"AI suggested title '{ai_suggested_title}' for input '{user_search_input_value}'")
+        return render_template('add_movie.html', **template_context)
 
-        return render_template(
-            'add_movie.html',
-            user=user,
-            current_year=datetime.now().year,
-            user_search_input_value=user_search_input_value,
-            ai_suggested_title=ai_suggested_title,
-            ai_message=ai_message,
-            omdb=omdb_data_for_template,
-            omdb_details=omdb_details_for_template,
-            rating5=rating5_for_template,
-            show_details_form=show_details_form,
-            hide_initial_search_form=hide_initial_search_form,
-            source_movie_id_for_template=source_movie_id_value,
-        )
-
+    # --- POST Request Logic (largely unchanged for now, can be refactored later) ---
+    # --- POST-Request-Logik (vorerst weitgehend unverändert, kann später refaktoriert werden) ---
     elif request.method == 'POST':
-        title_from_omdb_form = request.form.get('title_from_omdb', '').strip()
-        if not title_from_omdb_form: 
-            flash('Error: Movie title for adding was missing. Please try the search again.', 'danger')
-            return redirect(url_for('add_movie', user_id=user_id))
-
-        director = request.form.get('director', '').strip()
-        year_str = request.form.get('year', '').strip()
-        rating_str = request.form.get('rating', '').strip()
-        poster_url = request.form.get('poster_url', '').strip()
-        plot = request.form.get('plot', '').strip()
-        runtime = request.form.get('runtime', '').strip()
-        awards = request.form.get('awards', '').strip()
-        languages = request.form.get('languages', '').strip()
-        genre = request.form.get('genre', '').strip()
-        actors = request.form.get('actors', '').strip()
-        writer = request.form.get('writer', '').strip()
-        country = request.form.get('country', '').strip()
-        metascore = request.form.get('metascore', '').strip()
-        rated = request.form.get('rated', '').strip()
-        imdb_id = request.form.get('imdb_id', '').strip()
+        # original_user_search_input is needed by _process_add_movie_form for error redirects
+        # original_user_search_input wird von _process_add_movie_form für Fehlerweiterleitungen benötigt
         original_user_search_input_for_post = request.form.get('original_user_search_input', '')
+        source_movie_id_from_form = request.form.get('source_movie_id', type=int) # Hidden field in form
 
-        year = None
-        if year_str and year_str.isdigit():
-            year = int(year_str)
-        
-        rating = None
-        if rating_str:
-            try:
-                rating = float(rating_str)
-                if not (0 <= rating <= 5):
-                    flash('Rating must be between 0 and 5.', 'warning')
-                    return redirect(url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input_for_post))
-            except ValueError:
-                flash('Rating must be a numeric value.', 'warning')
-                return redirect(url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input_for_post))
-
-        omdb_suggested_rating_str = request.form.get('omdb_suggested_rating', '')
-        omdb_rating_for_community_param = None
-        if omdb_suggested_rating_str:
-            try:
-                omdb_rating_for_community_param = float(omdb_suggested_rating_str)
-                if not (0 <= omdb_rating_for_community_param <= 5):
-                    omdb_rating_for_community_param = None
-            except ValueError:
-                pass
-
-        movie_added = data_manager.add_movie(
-            user_id,
-            title_from_omdb_form, 
-            director,
-            year,
-            rating,
-            poster_url or None,
-            plot=plot or None,
-            runtime=runtime or None,
-            awards=awards or None,
-            languages=languages or None,
-            genre=genre or None,
-            actors=actors or None,
-            writer=writer or None,
-            country=country or None,
-            metascore=metascore or None,
-            rated=rated or None,
-            imdb_id=imdb_id or None,
-            omdb_rating_for_community=omdb_rating_for_community_param
+        success, message, category, fail_redirect_url = _process_add_movie_form(
+            request.form, 
+            user_id, 
+            source_movie_id_from_form, 
+            original_user_search_input_for_post
         )
-        if movie_added:
-            flash(f"Movie '{title_from_omdb_form}' added successfully.", 'success')
-            if source_movie_id_value:
-                return redirect(url_for('movie_page', movie_id=source_movie_id_value))
+
+        flash(message, category)
+
+        if success:
+            if source_movie_id_from_form:
+                return redirect(url_for('movie_page', movie_id=source_movie_id_from_form))
             return redirect(url_for('list_user_movies', user_id=user_id))
         else:
-            flash(f"Could not add movie '{title_from_omdb_form}'. It might already be in your list or an error occurred.", 'danger')
-            redirect_url = url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input_for_post)
-            if source_movie_id_value:
-                redirect_url = url_for('movie_page', movie_id=source_movie_id_value)
-            return redirect(redirect_url)
+            # fail_redirect_url is determined by _process_add_movie_form
+            # fail_redirect_url wird von _process_add_movie_form bestimmt
+            return redirect(fail_redirect_url or url_for('add_movie', user_id=user_id, user_search_input=original_user_search_input_for_post))
 
-    return redirect(url_for('add_movie', user_id=user_id, hide_initial_search_form=hide_initial_search_form, source_movie_id_for_template=source_movie_id_value))
+    # Fallback redirect for GET if no specific phase was handled (should not happen with current logic but good for safety)
+    # Fallback-Weiterleitung für GET, falls keine spezifische Phase behandelt wurde (sollte mit aktueller Logik nicht passieren, aber gut zur Sicherheit)
+    return redirect(url_for('add_movie', user_id=user_id, hide_initial_search_form=template_context['hide_initial_search_form'], source_movie_id_for_template=template_context['source_movie_id_for_template']))
 
 @app.route('/users/<int:user_id>/update_movie_rating/<int:movie_id>', methods=['GET', 'POST'])
 def update_movie_rating(user_id, movie_id):
@@ -570,10 +709,10 @@ def update_movie_rating(user_id, movie_id):
                 new_user_rating = float(rating_str)
                 if not (0 <= new_user_rating <= 5):
                     flash('Rating must be between 0 and 5.', 'warning')
-                    return render_template('update_movie_rating.html', user=g.user, movie=movie, current_user_rating=user_movie_link.user_rating)
+                    return redirect(url_for('movie_page', movie_id=movie.id))
             except ValueError:
                 flash('Rating must be a number.', 'warning')
-                return render_template('update_movie_rating.html', user=g.user, movie=movie, current_user_rating=user_movie_link.user_rating)
+                return redirect(url_for('movie_page', movie_id=movie.id))
 
         success = data_manager.update_user_rating_for_movie(user_id=g.user.id, movie_id=movie.id, new_rating=new_user_rating)
 
@@ -582,7 +721,7 @@ def update_movie_rating(user_id, movie_id):
             return redirect(url_for('list_user_movies', user_id=g.user.id))
         else:
             flash('Could not update your rating for this movie.', 'error')
-            return render_template('update_movie_rating.html', user=g.user, movie=movie, current_user_rating=user_movie_link.user_rating)
+            return redirect(url_for('movie_page', movie_id=movie.id))
     
     # For GET request, display the page with current rating
     # Für GET-Request, Seite mit aktueller Bewertung anzeigen
@@ -618,58 +757,85 @@ def movie_details(movie_id):
     """
     Movie details with comments (JSON endpoint).
     Provides movie details and its associated comments as a JSON response.
+    Follows standardized format: {'success': True/False, 'data': ..., 'message': ...}
+
+    Filmdetails mit Kommentaren (JSON-Endpunkt).
+    Liefert Filmdetails und zugehörige Kommentare als JSON-Antwort.
+    Folgt dem standardisierten Format: {'success': True/False, 'data': ..., 'message': ...}
     """
     movie = data_manager.get_movie_by_id(movie_id)
     if not movie:
-        return jsonify({'error': 'Movie not found'}), 404
+        current_app.logger.warning(f"Movie with ID {movie_id} not found for JSON endpoint /movie/{movie_id}.")
+        return jsonify({'success': False, 'message': 'Movie not found'}), 404
 
     comments = data_manager.get_comments_for_movie(movie_id)
     
+    movie_data = {
+        'id': movie.id,
+        'title': movie.title,
+        'director': movie.director,
+        'year': movie.year,
+        'community_rating': movie.community_rating,
+        'community_rating_count': movie.community_rating_count,
+        'plot': movie.plot,
+        'genre': movie.genre,
+        'runtime': movie.runtime,
+        'poster_url': movie.poster_url,
+        'imdb_id': movie.imdb_id
+    }
+    comments_data = [{
+        'id': c.id,
+        'text': c.text,
+        'user': c.user.name,
+        'created_at': c.created_at.isoformat()
+    } for c in comments]
+
+    current_app.logger.info(f"Successfully retrieved details for movie {movie_id} for JSON endpoint.")
     return jsonify({
-        'movie': {
-            'id': movie.id,
-            'title': movie.title,
-            'director': movie.director,
-            'year': movie.year,
-            'community_rating': movie.community_rating,
-            'community_rating_count': movie.community_rating_count,
-            'plot': movie.plot,
-            'genre': movie.genre,
-            'runtime': movie.runtime,
-            'poster_url': movie.poster_url,
-            'imdb_id': movie.imdb_id
-        },
-        'comments': [{
-            'id': c.id,
-            'text': c.text,
-            'user': c.user.name,
-            'created_at': c.created_at.isoformat()
-        } for c in comments]
-    })
+        'success': True,
+        'data': {
+            'movie': movie_data,
+            'comments': comments_data
+        }
+    }), 200
 
 @app.route('/movie/<int:movie_id>/comment', methods=['POST'])
 def add_movie_comment(movie_id):
     """
     Add a comment to a movie (JSON endpoint).
     Requires user to be logged in. Expects 'text' in form data.
+    Follows standardized format: {'success': True/False, 'data': ..., 'message': ...}
+    NOTE: This endpoint might be legacy if all commenting is handled by /page.
 
     Fügt einen Kommentar zu einem Film hinzu (JSON-Endpunkt).
     Erfordert, dass der Benutzer angemeldet ist. Erwartet 'text' in den Formulardaten.
+    Folgt dem standardisierten Format: {'success': True/False, 'data': ..., 'message': ...}
+    HINWEIS: Dieser Endpunkt könnte veraltet sein, wenn alle Kommentare über /page abgewickelt werden.
     """
     if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Not logged in.'})
+        current_app.logger.warning(f"Add comment attempt (via /comment) by unauthenticated user for movie {movie_id}.")
+        return jsonify({'success': False, 'message': 'User not logged in. Authentication required.', 'data': None}), 401
     
+    user_id_from_session = session['user_id']
     text = request.form.get('text', '').strip()
+
     if not text:
-        return jsonify({'success': False, 'message': 'Comment cannot be empty.'})
+        current_app.logger.warning(f"Add comment attempt (via /comment) for movie {movie_id} by user {user_id_from_session} with empty text.")
+        return jsonify({'success': False, 'message': 'Comment text cannot be empty.', 'data': None}), 400
     
-    new_comment = data_manager.add_comment(movie_id=movie_id, user_id=session['user_id'], text=text)
+    new_comment = data_manager.add_comment(movie_id=movie_id, user_id=user_id_from_session, text=text)
     
     if new_comment:
-        return jsonify({'success': True, 'comment_id': new_comment.id})
+        current_app.logger.info(f"User {user_id_from_session} successfully added comment {new_comment.id} to movie {movie_id} (via /comment).")
+        return jsonify({
+            'success': True, 
+            'message': 'Comment added successfully.',
+            'data': {'comment_id': new_comment.id}
+        }), 201
     else:
         # Specific error logging is done within data_manager.add_comment
-        return jsonify({'success': False, 'message': 'Error adding comment.'}), 500
+        current_app.logger.error(f"Failed to add comment (via /comment) for movie {movie_id} by user {user_id_from_session}. data_manager.add_comment returned None.")
+        return jsonify({'success': False, 'message': 'Error adding comment. Please try again.', 'data': None}), 500
 
 @app.route('/api/docs')
 def api_docs():
@@ -745,50 +911,60 @@ def movie_page(movie_id):
 @app.route('/movie/<int:movie_id>/comment/page', methods=['POST'])
 def add_movie_comment_page(movie_id):
     """
-    Handles adding a comment from the movie detail page.
-    Verarbeitet das Hinzufügen eines Kommentars von der Filmdetailseite.
+    Handles adding a comment from the movie detail page. Returns JSON.
+    Verarbeitet das Hinzufügen eines Kommentars von der Filmdetailseite. Gibt JSON zurück.
     """
     if 'user_id' not in session:
-        flash('You must be logged in to comment.', 'warning')
-        return redirect(url_for('movie_page', movie_id=movie_id))
+        # flash('You must be logged in to comment.', 'warning') # Old
+        # return redirect(url_for('movie_page', movie_id=movie_id)) # Old
+        current_app.logger.warning(f"Add comment attempt by unauthenticated user for movie {movie_id}.")
+        return jsonify({'success': False, 'message': 'You must be logged in to comment.'}), 401
 
-    # User and Movie objects are implicitly validated by data_manager.add_comment
-    # if they don't exist, add_comment will return None and log the issue.
-    # We still need user_id from session.
     user_id_from_session = session['user_id']
 
-    # text = request.form.get('text', '').strip() # Alt: Formularbasierte Annahme
-    current_app.logger.debug(f"Request headers: {request.headers}") # Temporäres Logging
-    current_app.logger.debug(f"Request data raw: {request.data}") # Temporäres Logging
-    data = request.get_json() # Neu: JSON-basierte Annahme
-    current_app.logger.debug(f"Request data JSON: {data}") # Temporäres Logging
+    current_app.logger.debug(f"Add comment request for movie {movie_id} by user {user_id_from_session}. Headers: {request.headers}")
+    current_app.logger.debug(f"Request data raw: {request.data}")
+    data = request.get_json()
+    current_app.logger.debug(f"Request data JSON: {data}")
 
     if not data:
-        flash('Invalid request data.', 'danger')
-        current_app.logger.warning("add_movie_comment_page: No JSON data received.") # Temporäres Logging
-        return redirect(url_for('movie_page', movie_id=movie_id))
+        # flash('Invalid request data.', 'danger') # Old
+        # current_app.logger.warning("add_movie_comment_page: No JSON data received.") # Old
+        # return redirect(url_for('movie_page', movie_id=movie_id)) # Old
+        current_app.logger.warning(f"Add comment attempt for movie {movie_id} by user {user_id_from_session} with no JSON data.")
+        return jsonify({'success': False, 'message': 'Invalid request data. Expected JSON.'}), 400
 
     text = data.get('comment_text', '').strip()
-    current_app.logger.debug(f"Extracted text: '{text}'") # Temporäres Logging
+    current_app.logger.debug(f"Extracted comment text for movie {movie_id} by user {user_id_from_session}: '{text}'")
 
     if not text:
-        flash('Comment cannot be empty.', 'warning')
-        current_app.logger.warning(f"add_movie_comment_page: Comment text is empty after processing. Original data: {data}") # Temporäres Logging
-        # Für einen JSON Request wäre eine JSON-Antwort besser, aber da dies von einer Formular-
-        # ähnlichen Interaktion auf der Detailseite kommt, die per JS umgeleitet wird,
-        # ist ein redirect mit flash hier ggf. noch akzeptabel, obwohl das JS schon eine Fehlermeldung anzeigt.
-        # Idealerweise würde das JS die flash-Nachricht vom redirect abfangen oder die Route gäbe JSON zurück.
-        return redirect(url_for('movie_page', movie_id=movie_id))
+        # flash('Comment cannot be empty.', 'warning') # Old
+        # current_app.logger.warning(f"add_movie_comment_page: Comment text is empty after processing. Original data: {data}") # Old
+        # return redirect(url_for('movie_page', movie_id=movie_id)) # Old
+        current_app.logger.warning(f"Add comment attempt for movie {movie_id} by user {user_id_from_session} with empty text.")
+        return jsonify({'success': False, 'message': 'Comment cannot be empty.'}), 400
 
     new_comment = data_manager.add_comment(movie_id=movie_id, user_id=user_id_from_session, text=text)
 
     if new_comment:
-        flash('Comment added successfully!', 'success')
+        # flash('Comment added successfully!', 'success') # Old
+        current_app.logger.info(f"User {user_id_from_session} successfully added comment {new_comment.id} to movie {movie_id}.")
+        return jsonify({
+            'success': True, 
+            'message': 'Comment added successfully!', 
+            'comment_id': new_comment.id,
+            'comment_text': new_comment.text,
+            'user_name': new_comment.user.name, # Assuming user relationship is loaded
+            'created_at': new_comment.created_at.isoformat()
+        }), 201
     else:
         # Specific error logging is done within data_manager.add_comment
-        flash('Error adding comment. Please try again.', 'danger')
+        # flash('Error adding comment. Please try again.', 'danger') # Old
+        # return redirect(url_for('movie_page', movie_id=movie_id)) # Old
+        current_app.logger.error(f"Failed to add comment for movie {movie_id} by user {user_id_from_session}. data_manager.add_comment returned None.")
+        return jsonify({'success': False, 'message': 'Error adding comment. Please try again.'}), 500
     
-    return redirect(url_for('movie_page', movie_id=movie_id))
+    # return redirect(url_for('movie_page', movie_id=movie_id)) # Old - Should not be reached anymore
 
 @app.route('/user/add_movie_to_list/<int:movie_id>', methods=['POST'])
 def add_movie_to_list(movie_id):
@@ -846,8 +1022,10 @@ def get_ai_movie_recommendations_route(movie_id):
     """
     movie = data_manager.get_movie_by_id(movie_id)
     if not movie:
+        current_app.logger.warning(f"AI recommendations requested for non-existent movie_id: {movie_id}")
         return jsonify({'success': False, 'message': 'Movie not found.'}), 404
 
+    user_id_for_logging = session.get('user_id', 'Guest') # Get user ID or Guest for logging
     user_history_before_this_call = session.get(AI_RECOMMENDATION_HISTORY_SESSION_KEY, [])
     exclusion_text = ""
     if user_history_before_this_call:
@@ -855,92 +1033,116 @@ def get_ai_movie_recommendations_route(movie_id):
         exclusion_text = EXCLUSION_CLAUSE_TEMPLATE.format(movies_to_exclude_list_format=movies_to_exclude_list_str)
 
     prompt = MOVIE_RECOMMENDATION_PROMPT_TEMPLATE.format(movie_title=movie.title, exclusion_clause=exclusion_text)
-    # Log constructed AI prompt for recommendations.
-    # Logge den erstellten KI-Prompt für Empfehlungen.
-    current_app.logger.debug(f"Constructed AI Prompt for user {session.get('user_id', 'N/A')} (Movie: {movie.title}):\\n{prompt}")
+    current_app.logger.debug(f"Constructed AI Prompt for user {user_id_for_logging} (Movie: {movie.title}):\\n{prompt}")
     
     try:
         temperature_str = request.args.get('temp', str(DEFAULT_AI_TEMPERATURE_RECOMMEND))
         temperature = float(temperature_str)
         if not (0.0 <= temperature <= 2.0):
+            current_app.logger.warning(f"Invalid temperature value '{temperature_str}' for user {user_id_for_logging}, falling back to {DEFAULT_AI_TEMPERATURE_RECOMMEND}.")
             temperature = DEFAULT_AI_TEMPERATURE_RECOMMEND
-            # Log invalid temperature fallback.
-            # Logge Fallback bei ungültiger Temperatur.
-            current_app.logger.warning(f"Invalid temperature value '{temperature_str}' received, falling back to {DEFAULT_AI_TEMPERATURE_RECOMMEND}.")
     except ValueError:
+        current_app.logger.warning(f"Could not convert temperature value '{request.args.get('temp')}' for user {user_id_for_logging} to float, falling back to {DEFAULT_AI_TEMPERATURE_RECOMMEND}.")
         temperature = DEFAULT_AI_TEMPERATURE_RECOMMEND
-        # Log temperature conversion fallback.
-        # Logge Fallback bei Temperaturkonvertierung.
-        current_app.logger.warning(f"Could not convert temperature value '{request.args.get('temp')}' to float, falling back to {DEFAULT_AI_TEMPERATURE_RECOMMEND}.")
 
-    try:
-        current_ai_suggestions = ask_openrouter_for_movies(prompt_content=prompt, temperature=temperature, expected_responses=5)
-        # Log AI recommendations.
-        # Logge KI-Empfehlungen.
-        current_app.logger.info(f"AI (temp={temperature}) recommended for '{movie.title}' (exclusion: {len(user_history_before_this_call)} titles for User {session.get('user_id','N/A')}): {current_ai_suggestions}")
-
-        is_error_response = False
-        if current_ai_suggestions and len(current_ai_suggestions) == 1:
-            title_lower = current_ai_suggestions[0].lower()
-            if any(err_phrase in title_lower for err_phrase in ["error", "not configured", "did not return", "failed to connect", "timed out", "api key"]):
-                is_error_response = True
-
-        if is_error_response:
-            error_msg_for_user = f"AI service error: {current_ai_suggestions[0]}." # English only
-            return jsonify({'success': False, 'recommendations': [], 'message': error_msg_for_user })
-
-        # Convert list of title strings to list of objects for the frontend
-        # Konvertiere die Liste der Titel-Strings in eine Liste von Objekten für das Frontend
-        recommendations_to_display_structured = []
-        if current_ai_suggestions:
-            for title_str in current_ai_suggestions:
-                if isinstance(title_str, str) and title_str: # Ensure it's a non-empty string / Sicherstellen, dass es ein nicht-leerer String ist
-                    recommendations_to_display_structured.append({'title': title_str, 'year': None}) # Add year as None for now / Jahr vorerst als None hinzufügen
-                # Optionally, handle cases where title_str might not be a string, though ask_openrouter_for_movies should return list[str]
-                # Optional können Fälle behandelt werden, in denen title_str kein String ist, obwohl ask_openrouter_for_movies list[str] zurückgeben sollte
-
-        # Log titles shown to user.
-        # Logge die dem Benutzer angezeigten Titel.
-        current_app.logger.info(f"Showing {len(recommendations_to_display_structured)} structured titles to user (ID: {session.get('user_id','N/A')}): {recommendations_to_display_structured}")
-
-        if recommendations_to_display_structured: # Check the structured list / Überprüfe die strukturierte Liste
-            updated_user_history = list(user_history_before_this_call)
-            newly_added_this_round_count = 0
-            # Use the original title strings for history management
-            # Verwende die ursprünglichen Titel-Strings für das Verlaufsmanagement
-            for title_shown_str in current_ai_suggestions: 
-                if isinstance(title_shown_str, str) and title_shown_str and title_shown_str not in updated_user_history: 
-                    updated_user_history.append(title_shown_str)
-                    newly_added_this_round_count += 1
-            
-            if newly_added_this_round_count > 0:
-                while len(updated_user_history) > AI_RECOMMENDATION_HISTORY_LENGTH:
-                    updated_user_history.pop(0)
-                session[AI_RECOMMENDATION_HISTORY_SESSION_KEY] = updated_user_history
-                # Log AI recommendation history update.
-                # Logge die Aktualisierung des KI-Empfehlungsverlaufs.
-                current_app.logger.info(f"{newly_added_this_round_count} new titles added to AI recommendation history for user (ID: {session.get('user_id', 'N/A')}). New length: {len(updated_user_history)}. Content: {updated_user_history}")
-            else:
-                # Log if no new titles were added to history.
-                # Logge, wenn keine neuen Titel zum Verlauf hinzugefügt wurden.
-                current_app.logger.info(f"No *new* titles added to AI history for user (ID: {session.get('user_id', 'N/A')}) as all displayed titles were already known.")
-
-        return jsonify({'success': True, 'recommendations': recommendations_to_display_structured})
+    # The ask_openrouter_for_movies function now returns a list of strings which are either titles or error messages.
+    # Die Funktion ask_openrouter_for_movies gibt nun eine Liste von Strings zurück, die entweder Titel oder Fehlermeldungen sind.
+    current_ai_suggestions_or_error = ask_openrouter_for_movies(prompt_content=prompt, temperature=temperature, expected_responses=5)
     
-    except requests.exceptions.RequestException as e:
-        # Log OpenRouter API RequestException.
-        # Logge OpenRouter API RequestException.
-        current_app.logger.error(f"OpenRouter API RequestException in Route: {e}")
-        if e.response is not None and e.response.status_code in [401, 403] or ("OPENROUTER_API_KEY" in str(e)):
-            msg = "OpenRouter API key is missing, invalid, or quota exceeded. Please check server configuration." # English only
+    # Check if the first (and likely only) element indicates an error returned from ask_openrouter_for_movies
+    # Prüfen, ob das erste (und wahrscheinlich einzige) Element auf einen Fehler hinweist, der von ask_openrouter_for_movies zurückgegeben wurde
+    is_internal_error_response = False
+    error_message_from_ai_func = ""
+
+    if not current_ai_suggestions_or_error: # Should not happen if ask_openrouter_for_movies respects its contract to return a list
+        current_app.logger.error(f"AI call for user {user_id_for_logging} (Movie: {movie.title}) returned empty list unexpectedly.")
+        return jsonify({'success': False, 'message': AI_MSG_UNEXPECTED_ERROR_TEMPLATE.format(error_message='AI service returned no data.')}), 500
+
+    # Check for known error messages from our constants used within ask_openrouter_for_movies
+    # Überprüfe auf bekannte Fehlermeldungen aus unseren Konstanten, die in ask_openrouter_for_movies verwendet werden
+    possible_error_markers = [
+        AI_MSG_OPENROUTER_KEY_MISSING,
+        AI_MSG_REQUEST_TIMEOUT,
+        AI_MSG_CONNECTION_ERROR_GENERIC,
+        AI_MSG_NO_SUGGESTIONS_LIST # This indicates AI ran but found nothing, not strictly an error but needs handling
+    ]
+    # Also check for templates by looking for their unique parts
+    # Überprüfe auch Vorlagen, indem du nach ihren eindeutigen Teilen suchst
+    if any(marker in current_ai_suggestions_or_error[0] for marker in possible_error_markers) or \
+       AI_MSG_API_ERROR_DETAILED_TEMPLATE.split('{')[0] in current_ai_suggestions_or_error[0] or \
+       AI_MSG_UNEXPECTED_ERROR_TEMPLATE.split('{')[0] in current_ai_suggestions_or_error[0]:
+        is_internal_error_response = True
+        error_message_from_ai_func = current_ai_suggestions_or_error[0]
+        # Log AI error specifically for recommendations flow.
+        # Logge KI-Fehler spezifisch für den Empfehlungsablauf.
+        current_app.logger.warning(f"AI recommendations for user {user_id_for_logging} (Movie: {movie.title}) failed. AI function returned: {error_message_from_ai_func}")
+
+    if is_internal_error_response:
+        # For user-facing messages, we might want to be less specific than the internal log / Für benutzerseitige Nachrichten möchten wir möglicherweise weniger spezifisch sein als im internen Log
+        user_facing_error = error_message_from_ai_func 
+        if AI_MSG_OPENROUTER_KEY_MISSING in user_facing_error or "API Key" in user_facing_error: # English only for user-facing
+            user_facing_error = "AI service is currently misconfigured. Please contact support." # English only
+        elif AI_MSG_NO_SUGGESTIONS_LIST in user_facing_error:
+             user_facing_error = "The AI could not find any specific recommendations for this movie at the moment."
+        # For other generic errors from ask_openrouter_for_movies, they are already user-friendly
+        # Für andere generische Fehler von ask_openrouter_for_movies sind diese bereits benutzerfreundlich
+        return jsonify({'success': False, 'recommendations': [], 'message': user_facing_error }), 503 # Service Unavailable or 500
+
+    # If we are here, current_ai_suggestions_or_error should be a list of actual movie titles
+    # Wenn wir hier sind, sollte current_ai_suggestions_or_error eine Liste tatsächlicher Filmtitel sein
+    
+    # Explicitly filter out the original movie title from suggestions, just in case AI includes it despite the prompt.
+    # Den ursprünglichen Filmtitel explizit aus den Vorschlägen herausfiltern, nur für den Fall, dass die KI ihn trotz des Prompts einbezieht.
+    original_movie_title_for_filtering = movie.title
+    filtered_suggestions_with_potential_duplicates = [
+        sugg_title for sugg_title in current_ai_suggestions_or_error 
+        if sugg_title.lower().strip() != original_movie_title_for_filtering.lower().strip()
+    ]
+
+    # De-duplicate the list while preserving order of first appearance
+    # Dedupliziere die Liste unter Beibehaltung der Reihenfolge des ersten Auftretens
+    seen_titles = set()
+    filtered_suggestions = []
+    for sugg_title in filtered_suggestions_with_potential_duplicates:
+        if sugg_title.lower().strip() not in seen_titles:
+            filtered_suggestions.append(sugg_title)
+            seen_titles.add(sugg_title.lower().strip())
+    
+    current_app.logger.info(f"AI (temp={temperature}) recommended for '{original_movie_title_for_filtering}' (exclusion: {len(user_history_before_this_call)} titles for User {user_id_for_logging}), Original suggestions: {current_ai_suggestions_or_error}, After self-filtering and deduplication: {filtered_suggestions}")
+
+    recommendations_to_display_structured = []
+    # Limit to a maximum of 5 suggestions from the de-duplicated list
+    for title_str in filtered_suggestions[:5]: 
+        if isinstance(title_str, str) and title_str: 
+            recommendations_to_display_structured.append({'title': title_str, 'year': None})
+    
+    current_app.logger.info(f"Showing {len(recommendations_to_display_structured)} structured titles to user (ID: {user_id_for_logging}): {recommendations_to_display_structured}")
+
+    if recommendations_to_display_structured:
+        updated_user_history = list(user_history_before_this_call)
+        newly_added_this_round_count = 0
+        # Add only the actually displayed unique titles to the history for future exclusion
+        # Füge nur die tatsächlich angezeigten eindeutigen Titel zur Historie für zukünftigen Ausschluss hinzu
+        for displayed_rec in recommendations_to_display_structured:
+            title_shown_str = displayed_rec['title']
+            if isinstance(title_shown_str, str) and title_shown_str and title_shown_str.lower().strip() not in [h.lower().strip() for h in updated_user_history]: 
+                updated_user_history.append(title_shown_str)
+                newly_added_this_round_count += 1
+        
+        if newly_added_this_round_count > 0:
+            while len(updated_user_history) > AI_RECOMMENDATION_HISTORY_LENGTH:
+                updated_user_history.pop(0)
+            session[AI_RECOMMENDATION_HISTORY_SESSION_KEY] = updated_user_history
+            current_app.logger.info(f"{newly_added_this_round_count} new titles added to AI recommendation history for user (ID: {user_id_for_logging}). New length: {len(updated_user_history)}.")
         else:
-            msg = f"Failed to get AI recommendations due to a network or API issue: {str(e)}." # English only
-        return jsonify({'success': False, 'message': msg}), 500
-    except Exception as e:
-        # Log generic error getting AI recommendations.
-        # Logge generischen Fehler beim Abrufen von KI-Empfehlungen.
-        current_app.logger.error(f"Error getting AI recommendations in Route: {e}")
-        return jsonify({'success': False, 'message': f"Failed to get AI recommendations: {str(e)}."}), 500 # English only for user-facing
+            current_app.logger.info(f"No *new* titles added to AI history for user (ID: {user_id_for_logging}) as all displayed titles were already known.")
+
+        return jsonify({'success': True, 'recommendations': recommendations_to_display_structured, 'message': 'Recommendations loaded successfully.'}), 200
+    else:
+        # This case implies that ask_openrouter_for_movies returned a list of empty strings or non-strings after cleaning, which is unlikely but possible.
+        # Dieser Fall impliziert, dass ask_openrouter_for_movies nach der Bereinigung eine Liste von leeren Strings oder Nicht-Strings zurückgegeben hat, was unwahrscheinlich, aber möglich ist.
+        current_app.logger.warning(f"AI recommendations for user {user_id_for_logging} (Movie: {movie.title}) resulted in an empty list after structuring.")
+        return jsonify({'success': False, 'recommendations': [], 'message': 'AI could not provide recommendations in the expected format.'}), 500
 
 def ask_openrouter_for_movies(prompt_content: str, temperature: float, expected_responses: int = 5) -> list[str]:
     """
@@ -955,26 +1157,18 @@ def ask_openrouter_for_movies(prompt_content: str, temperature: float, expected_
                           Dies beeinflusst nicht direkt die API-Anfrage, aber die Handhabung der Antwort.
     """
     if not OPENROUTER_API_KEY:
-        # Log error if OpenRouter API Key is not configured.
-        # Logge Fehler, wenn der OpenRouter API-Schlüssel nicht konfiguriert ist.
         current_app.logger.error("OpenRouter API Key is not configured. / OpenRouter API-Schlüssel ist nicht konfiguriert.")
-        return ["OpenRouter API Key not configured on server."] # English only for user-facing
+        return [AI_MSG_OPENROUTER_KEY_MISSING]
 
-    # Log prompt being sent to AI.
-    # Logge den an die KI gesendeten Prompt.
-    current_app.logger.debug(f"Sending prompt to AI (temp={temperature}, expecting ~{expected_responses} responses):\\n{prompt_content[:500]}...")
+    current_app.logger.debug(f"Sending prompt to AI (model: {AI_MODEL_FOR_REQUESTS}, temp={temperature}, expecting ~{expected_responses} responses):\\n{prompt_content[:500]}...")
 
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            },
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
             data=json.dumps({
-                "model": "openai/gpt-3.5-turbo",
-                "messages": [
-                    {"role": "user", "content": prompt_content}
-                ],
+                "model": AI_MODEL_FOR_REQUESTS,
+                "messages": [{"role": "user", "content": prompt_content}],
                 "temperature": temperature,
                 "max_tokens": 150 if expected_responses > 1 else 50
             }),
@@ -982,141 +1176,131 @@ def ask_openrouter_for_movies(prompt_content: str, temperature: float, expected_
         )
         response.raise_for_status()
         data = response.json()
-        content = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+        raw_content = data.get('choices', [{}])[0].get('message', {}).get('content', '')
         
-        if content:
-            if expected_responses == 1 and content != "NO_CLEAR_MOVIE_TITLE_FOUND":
-                cleaned_title = content.strip()
-                
-                match = re.search(r'"([^"]+)"', cleaned_title)
-                if match:
-                    cleaned_title = match.group(1).strip()
-                else:
-                    prefixes_to_remove = [
-                        r"the most probable movie title is:?",
-                        r"it is likely:?",
-                        r"the movie title is:?",
-                        r"the movie is:?",
-                        r"movie title:?",
-                        r"movie:?",
-                        r"title:?",
-                        r"^\s*-\s*", 
-                        r"^\s*\d+[.,\\)]\s*" 
-                    ]
-                    for prefix_pattern in prefixes_to_remove:
-                        cleaned_title = re.sub(f"^{prefix_pattern}", "", cleaned_title, flags=re.IGNORECASE).strip()
-
-                    if (cleaned_title.startswith('"') and cleaned_title.endswith('"')) or \
-                       (cleaned_title.startswith("'") and cleaned_title.endswith("'")):
-                        cleaned_title = cleaned_title[1:-1].strip()
-                
-                if cleaned_title.endswith('.'):
-                    cleaned_title = cleaned_title[:-1].strip()
-
-                # Log raw and processed AI single response.
-                # Logge rohe und verarbeitete einzelne KI-Antwort.
-                current_app.logger.debug(f"Raw AI single response: '{content}', Processed: '{cleaned_title}'")
-                return [cleaned_title] if cleaned_title else []
-            elif content == "NO_CLEAR_MOVIE_TITLE_FOUND":
-                 return ["NO_CLEAR_MOVIE_TITLE_FOUND"]
+        if raw_content:
+            if expected_responses == 1:
+                if raw_content == "NO_CLEAR_MOVIE_TITLE_FOUND": # Check against the specific, un-cleaned marker
+                    return ["NO_CLEAR_MOVIE_TITLE_FOUND"]
+                cleaned_title = _clean_ai_single_movie_title_response(raw_content)
+                current_app.logger.debug(f"Raw AI single response: '{raw_content}', Processed: '{cleaned_title}'")
+                return [cleaned_title] if cleaned_title else [] # Return empty list if cleaning results in empty
             else: # This is for expected_responses > 1 (recommendations)
-                processed_titles = []
-                
-                # Regex to remove leading numbers, bullets, or hyphens used for lists
-                # Regex zum Entfernen führender Zahlen, Aufzählungszeichen oder Bindestriche, die für Listen verwendet werden
-                list_prefix_pattern = re.compile(r"^(\d+[,.)]?\s*|[-*•]+\s*)")
-                
-                # Consistent list of textual prefixes to remove, similar to single response cleaning
-                # Konsistente Liste zu entfernender textueller Präfixe, ähnlich der Einzelantwort-Bereinigung
-                textual_prefixes_to_remove_patterns = [
-                    r"the most probable movie title is:?",
-                    r"it is likely:?",
-                    r"the movie title is:?",
-                    r"the movie is:?",
-                    r"movie title:?",
-                    r"movie:?",
-                    r"title:?",
-                    # Adding patterns that were in single response but might also appear here
-                    # Hinzufügen von Mustern, die in der Einzelantwort waren, aber auch hier erscheinen könnten
-                    r"^\s*-\s*", # Handles cases where a dash might remain if not caught by list_prefix_pattern
-                                  # Behandelt Fälle, in denen ein Bindestrich verbleiben könnte, wenn er nicht vom list_prefix_pattern erfasst wird
-                ]
-
-                # Step 1: Split by newlines
-                # Schritt 1: Nach Zeilenumbrüchen teilen
-                lines_from_ai = [line.strip() for line in content.split('\n') if line.strip()]
-
-                for line_str in lines_from_ai:
-                    # Step 2: Remove list prefixes (like '*', '1.', '-') from the whole line first
-                    # Schritt 2: Listenpräfixe (wie '*', '1.', '-') zuerst von der gesamten Zeile entfernen
-                    line_without_list_prefix = list_prefix_pattern.sub("", line_str).strip()
-
-                    # Step 3: Now, titles on this line might be separated by commas
-                    # Schritt 3: Nun könnten Titel in dieser Zeile durch Kommas getrennt sein
-                    potential_titles_on_line = [t.strip() for t in line_without_list_prefix.split(',') if t.strip()]
-
-                    for title_candidate in potential_titles_on_line:
-                        # Step 4: Apply remaining cleaning to each individual title candidate
-                        # Schritt 4: Die verbleibende Bereinigung auf jeden einzelnen Titelkandidaten anwenden
-                        cleaned_title = title_candidate # Start with this / Damit beginnen
-                        
-                        # Try to extract content from quotes if present
-                        # Versuche, Inhalt aus Anführungszeichen zu extrahieren, falls vorhanden
-                        match_quotes = re.search(r'"([^"]+)"', cleaned_title)
-                        if match_quotes:
-                            cleaned_title = match_quotes.group(1).strip()
-                        else:
-                            # If no quotes, then apply textual prefix removal
-                            # Wenn keine Anführungszeichen vorhanden sind, dann textuelle Präfixentfernung anwenden
-                            for text_prefix_regex_str in textual_prefixes_to_remove_patterns:
-                                cleaned_title = re.sub(f"^{text_prefix_regex_str}", "", cleaned_title, flags=re.IGNORECASE).strip()
-                            
-                            # Remove leading/trailing quotes if they were not handled by regex and are hugging the title
-                            # Entferne führende/nachfolgende Anführungszeichen, wenn sie nicht von Regex behandelt wurden und den Titel umschließen
-                            if (cleaned_title.startswith('"') and cleaned_title.endswith('"')) or \
-                               (cleaned_title.startswith("'") and cleaned_title.endswith("'")):
-                                cleaned_title = cleaned_title[1:-1].strip()
-                        
-                        # Remove trailing period if any
-                        # Entferne nachfolgenden Punkt, falls vorhanden
-                        if cleaned_title.endswith('.'):
-                            cleaned_title = cleaned_title[:-1].strip()
-
-                        if cleaned_title: # Ensure it's not empty after all cleaning / Sicherstellen, dass es nach der gesamten Bereinigung nicht leer ist
-                            processed_titles.append(cleaned_title)
-                        
-                # Log raw and processed AI list response.
-                # Logge rohe und verarbeitete KI-Listenantwort.
-                current_app.logger.debug(f"Raw AI list response: {lines_from_ai}, Processed: {processed_titles}")
+                processed_titles = _clean_ai_movie_list_response(raw_content)
+                current_app.logger.debug(f"Raw AI list response content: '{raw_content}', Processed list: {processed_titles}")
                 return processed_titles
         else:
-            # Log warning if no content received from OpenRouter API.
-            # Logge Warnung, wenn kein Inhalt von der OpenRouter API empfangen wurde.
             current_app.logger.warning("No content received from OpenRouter API. / Kein Inhalt von OpenRouter API erhalten.")
-            return ["AI did not return any suggestions."] if expected_responses > 1 else [NO_CLEAR_MOVIE_TITLE_MARKER] # English only for user-facing
+            return [AI_MSG_NO_SUGGESTIONS_LIST] if expected_responses > 1 else [NO_CLEAR_MOVIE_TITLE_MARKER]
 
     except requests.exceptions.Timeout:
-        # Log OpenRouter API request timeout.
-        # Logge Zeitüberschreitung der OpenRouter API-Anfrage.
-        current_app.logger.error(f"OpenRouter API request timed out. / OpenRouter API-Anfrage Zeitüberschreitung.")
-        return ["AI service request timed out. Please try again later."] # English only for user-facing
+        current_app.logger.error("OpenRouter API request timed out. / OpenRouter API-Anfrage Zeitüberschreitung.")
+        return [AI_MSG_REQUEST_TIMEOUT]
     except requests.exceptions.RequestException as e:
-        # Log OpenRouter API RequestException.
-        # Logge OpenRouter API RequestException.
         current_app.logger.error(f"OpenRouter API RequestException: {e}. Response: {e.response.text if e.response else 'No response / Keine Antwort'}")
-        error_message_user = "Error connecting to AI service." # English only
+        error_message_for_user = AI_MSG_CONNECTION_ERROR_GENERIC
         if e.response is not None:
             try:
                 error_detail = e.response.json()
-                error_message_user = f"AI API Error: {error_detail.get('error', {}).get('message', str(e))}." # English only
-            except ValueError: # Handle cases where response is not JSON / Behandle Fälle, in denen die Antwort kein JSON ist
-                error_message_user = f"AI API Error (non-JSON response): {e.response.status_code} - {e.response.text[:100]}." # English only
-        return [error_message_user] 
+                api_err_msg = error_detail.get('error', {}).get('message', str(e))
+                error_message_for_user = AI_MSG_API_ERROR_DETAILED_TEMPLATE.format(error_message=api_err_msg)
+            except ValueError: # Handle cases where response is not JSON
+                api_err_msg = f"{e.response.status_code} - {e.response.text[:100]}"
+                error_message_for_user = AI_MSG_API_ERROR_DETAILED_TEMPLATE.format(error_message=api_err_msg)
+        return [error_message_for_user] 
     except Exception as e:
-        # Log generic error in ask_openrouter_for_movies.
-        # Logge generischen Fehler in ask_openrouter_for_movies.
         current_app.logger.error(f"Generic error in ask_openrouter_for_movies: {e}. / Allgemeiner Fehler in ask_openrouter_for_movies: {e}.")
-        return [f"An unexpected error occurred with the AI service: {str(e)}."] # English only for user-facing
+        return [AI_MSG_UNEXPECTED_ERROR_TEMPLATE.format(error_message=str(e))]
+
+def _clean_ai_single_movie_title_response(raw_content: str) -> str:
+    """
+    Cleans a single movie title string received from the AI.
+    Removes common prefixes, quotes, and trailing periods.
+
+    Bereinigt einen einzelnen Filmtitel-String, der von der KI empfangen wurde.
+    Entfernt gängige Präfixe, Anführungszeichen und nachgestellte Punkte.
+    """
+    cleaned_title = raw_content.strip()
+    
+    # Try to extract content from quotes first
+    # Versuche zuerst, den Inhalt aus Anführungszeichen zu extrahieren
+    match = re.search(r'"([^"]+)"', cleaned_title)
+    if match:
+        cleaned_title = match.group(1).strip()
+    else:
+        # If no quotes, remove common textual prefixes
+        # Wenn keine Anführungszeichen, dann gängige textuelle Präfixe entfernen
+        prefixes_to_remove = [
+            r"the most probable movie title is:?",
+            r"it is likely:?",
+            r"the movie title is:?",
+            r"the movie is:?",
+            r"movie title:?",
+            r"movie:?",
+            r"title:?",
+            r"^\s*-\s*", 
+            r"^\s*\d+[.,\\)]\s*" 
+        ]
+        for prefix_pattern in prefixes_to_remove:
+            cleaned_title = re.sub(f"^{prefix_pattern}", "", cleaned_title, flags=re.IGNORECASE).strip()
+
+        # Remove surrounding quotes if they still exist (e.g. '"Title"' -> 'Title')
+        # Entferne umschließende Anführungszeichen, falls sie noch existieren (z.B. '"Titel"' -> 'Titel')
+        if (cleaned_title.startswith('"') and cleaned_title.endswith('"')) or \
+           (cleaned_title.startswith("'") and cleaned_title.endswith("'")):
+            cleaned_title = cleaned_title[1:-1].strip()
+    
+    # Remove trailing period if any
+    # Entferne nachgestellten Punkt, falls vorhanden
+    if cleaned_title.endswith('.'):
+        cleaned_title = cleaned_title[:-1].strip()
+        
+    return cleaned_title
+
+def _clean_ai_movie_list_response(raw_content: str) -> list[str]:
+    """
+    Cleans a list of movie titles received from the AI (typically newline-separated).
+    Handles list prefixes, comma-separated titles within a line, and individual title cleaning.
+
+    Bereinigt eine Liste von Filmtiteln, die von der KI empfangen wurden (typischerweise durch Zeilenumbrüche getrennt).
+    Behandelt Listenpräfixe, kommagetrennte Titel innerhalb einer Zeile und die Bereinigung einzelner Titel.
+    """
+    processed_titles = []
+    
+    # Regex to remove leading numbers, bullets, or hyphens used for lists
+    # Regex zum Entfernen führender Zahlen, Aufzählungszeichen oder Bindestriche, die für Listen verwendet werden
+    list_prefix_pattern = re.compile(r"^(\d+[,.)]?\s*|[-*•]+\s*)")
+    
+    # Step 1: Split by newlines
+    # Schritt 1: Nach Zeilenumbrüchen teilen
+    lines_from_ai = [line.strip() for line in raw_content.split('\n') if line.strip()]
+
+    for line_str in lines_from_ai:
+        # Step 2: Remove list prefixes (like '*', '1.', '-') from the whole line first
+        # Schritt 2: Listenpräfixe (wie '*', '1.', '-') zuerst von der gesamten Zeile entfernen
+        line_without_list_prefix = list_prefix_pattern.sub("", line_str).strip()
+
+        # Step 3: Titles on this line might be separated by commas or exist as a single item
+        # Schritt 3: Titel in dieser Zeile könnten durch Kommas getrennt sein oder als einzelnes Element existieren
+        # potential_titles_on_line = [t.strip() for t in line_without_list_prefix.split(',') if t.strip()] # OLD LOGIC
+        
+        # NEW LOGIC: Assume each line (after prefix cleaning) is one title.
+        # NEUE LOGIK: Annahme, dass jede Zeile (nach Präfix-Bereinigung) ein Titel ist.
+        title_candidate = line_without_list_prefix
+
+        # for title_candidate in potential_titles_on_line: # OLD LOGIC LOOP
+        if title_candidate: # Check if candidate is not empty
+            # Step 4: Apply single title cleaning to each candidate
+            # Schritt 4: Die Bereinigung für einzelne Titel auf jeden Kandidaten anwenden
+            # Re-using _clean_ai_single_movie_title_response for consistency
+            # Wiederverwendung von _clean_ai_single_movie_title_response für Konsistenz
+            cleaned_title = _clean_ai_single_movie_title_response(title_candidate)
+            
+            if cleaned_title: # Ensure it's not empty after all cleaning
+                              # Sicherstellen, dass es nach der gesamten Bereinigung nicht leer ist
+                processed_titles.append(cleaned_title)
+                        
+    return processed_titles
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -119,6 +119,31 @@
         color: #cccccc !important; /* Lighter grey on hover / Helleres Grau beim Hovern */
         text-decoration: underline;
     }
+
+    /* Ensure <a> tags styled as custom buttons look correct */
+    /* Sicherstellen, dass <a>-Tags, die als benutzerdefinierte Schaltflächen formatiert sind, korrekt aussehen */
+    a.custom-button.custom-button-ai,
+    a.custom-button.custom-button-ai:link,
+    a.custom-button.custom-button-ai:visited {
+        text-decoration: none !important;
+        color: white !important; /* Assuming button text is white, adjust if base styles differ */
+                                 /* Annahme, dass der Button-Text weiß ist, anpassen, falls Basis-Stile abweichen */
+        display: inline-block !important; /* Crucial for <a> to behave like a button for padding/sizing */
+                                 /* Entscheidend, damit <a> sich für Padding/Größenanpassung wie ein Button verhält */
+        /* Padding, background, border etc. should come from .custom-button and .custom-button-ai definitions */
+        /* Padding, Hintergrund, Rahmen usw. sollten aus den Definitionen von .custom-button und .custom-button-ai stammen */
+        /* We might need to explicitly set padding if it's not inherited correctly for <a> tags */
+        /* Möglicherweise müssen wir Padding explizit setzen, wenn es für <a>-Tags nicht korrekt vererbt wird */
+        /* Example: padding: 10px 15px !important; */
+    }
+    a.custom-button.custom-button-ai:hover,
+    a.custom-button.custom-button-ai:active {
+        text-decoration: none !important;
+        /* Hover/active colors should be handled by the respective .custom-button / .custom-button-ai hover/active styles */
+        /* Hover-/Aktiv-Farben sollten durch die entsprechenden Hover-/Aktiv-Stile von .custom-button / .custom-button-ai behandelt werden */
+        /* If .custom-button-ai has a specific hover color, ensure it's applied */
+        /* Falls .custom-button-ai eine spezifische Hover-Farbe hat, sicherstellen, dass sie angewendet wird */
+    }
 </style>
 {% endblock %}
 
@@ -126,9 +151,9 @@
 <div class="detail-container" {% if g_is_user_logged_in %}data-current-user-id="{{ g_current_user.id }}"{% endif %}>
     {# First "Back to Overview" Button / Erster "Zurück zur Übersicht" Button #}
     {% if g_is_user_logged_in %}
-        <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to My Movie List</button>
+        <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}'" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to My Movie List</button>
     {% else %}
-        <button onclick="window.location.href='{{ url_for('home') }}';" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to Home</button>
+        <button onclick="window.location.href='{{ url_for('home') }}'" class="custom-button" style="margin-bottom: 20px;">&laquo; Back to Home</button>
     {% endif %}
     <div class="detail-grid">
         <div class="movie-poster-large">
@@ -241,19 +266,21 @@
                     </div>
                 {% endfor %}
             {% else %}
-                <p>No comments yet. Be the first to write one!</p>
+                <p id="no-comments-message">No comments yet. Be the first to write one!</p>
             {% endif %}
         </div>
         
         {% if g_is_user_logged_in %} {# Only logged-in users can comment / Nur eingeloggte Benutzer können kommentieren #}
         <div class="review-form simple-form" style="margin-top:20px;">
             <h4>Write a Comment</h4>
+            {# Div to display comment submission status/errors #}
+            <div id="comment-status-message" style="margin-bottom: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
+
             <form id="commentForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <textarea name="comment_text" id="comment_text" placeholder="Write your comment here... / Schreibe deinen Kommentar hier..." required></textarea>
                 <button type="submit" class="custom-button custom-button-small">Post Comment</button>
             </form>
-            <div id="commentMessage" style="margin-top:10px; color: #ffc107;"></div>
         </div>
         {% else %}
             <p style="margin-top:20px;">You need to be <a href="{{ url_for('home', _anchor='login-section-home') }}" style="color:#ffc107;">logged in</a> to post a comment.</p>
@@ -263,9 +290,9 @@
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #333;">
         {# Second "Back to Overview" Button / Zweiter "Zurück zur Übersicht" Button #}
         {% if g_is_user_logged_in %}
-            <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}';" class="custom-button">&laquo; Back to My Movie List</button>
+            <button onclick="window.location.href='{{ url_for('list_user_movies', user_id=g_current_user.id) }}'" class="custom-button">&laquo; Back to My Movie List</button>
         {% else %}
-            <button onclick="window.location.href='{{ url_for('home') }}';" class="custom-button">&laquo; Back to Home</button>
+            <button onclick="window.location.href='{{ url_for('home') }}'" class="custom-button">&laquo; Back to Home</button>
         {% endif %}
     </div>
 
@@ -280,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fetchButton = document.getElementById('fetch-ai-recommendations');
     const resultDiv = document.getElementById('ai-recommendations-result');
     const selectedMovieDetailsDiv = document.getElementById('ai-selected-movie-details');
-    const currentMovieId = document.body.getAttribute('data-current-movie-id');
+    const currentMovieId = "{{ movie.id }}"; // Directly get movie ID here for AI recs / Film-ID direkt hier für KI-Empfehlungen holen
     const currentUserId = document.querySelector('.detail-container').getAttribute('data-current-user-id');
 
     if (fetchButton && currentMovieId) {
@@ -291,14 +318,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch(`/movie/${currentMovieId}/ai_recommendations`)
                 .then(response => {
+                    // Check if response itself is ok (network layer)
                     if (!response.ok) {
-                        throw new Error(`HTTP error ${response.status}`);
+                        // Try to parse error from body for more specific messages if backend sends JSON error for HTTP error status
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || `HTTP error ${response.status}`);
+                        }).catch(() => {
+                            // Fallback if JSON parsing fails or no message in JSON
+                            throw new Error(`HTTP error ${response.status}`);
+                        });
                     }
-                    return response.json();
+                    return response.json(); // If response.ok, parse JSON
                 })
                 .then(data => {
-                    if (data.error) {
-                        resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                    // Now, data is the parsed JSON from a successful HTTP response (could still be a logical error from our API)
+                    if (!data.success) { // Check our custom 'success' flag
+                        resultDiv.innerHTML = `<p style="color: red;">Error: ${data.message || 'Failed to fetch recommendations.'}</p>`;
                         return;
                     }
                     if (data.recommendations && data.recommendations.length > 0) {
@@ -309,14 +344,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         html += '</ul>';
                         resultDiv.innerHTML = html;
                         addRecommendationLinkListeners();
-                    } else if (data.message) { 
-                        resultDiv.innerHTML = `<p>${data.message}</p>`;
-                    } else {
-                        resultDiv.innerHTML = '<p>No recommendations found or an unknown issue occurred.</p>';
+                    } else { // Success true, but no recommendations (or empty message)
+                        resultDiv.innerHTML = `<p>${data.message || 'No recommendations found at this time.'}</p>`;
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching AI recommendations:', error);
+                    // This catch handles network errors from fetch, or errors thrown from the .then() blocks
                     resultDiv.innerHTML = `<p style="color: red;">Could not fetch AI recommendations: ${error.message}. Please try again later.</p>`;
                 });
         });
@@ -340,10 +374,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Step 1: Fetch from OMDb Proxy
         fetch(`/api/omdb_proxy?title=${encodeURIComponent(title)}${year ? '&year=' + encodeURIComponent(year) : ''}`)
-            .then(response => response.json())
-            .then(omdbData => {
-                if (omdbData.Response !== 'True' || !omdbData.imdbID) {
-                    selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not retrieve details for "${title}" from OMDb. ${omdbData.Error || 'Unknown OMDb error.'}</p>`;
+            .then(response => { // First, check HTTP status and try to parse JSON for more detailed errors
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || `OMDb Proxy HTTP error ${response.status}`);
+                    }).catch(() => { // Fallback if JSON parsing of error fails
+                        throw new Error(`OMDb Proxy HTTP error ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(proxyResponse => {
+                // Now proxyResponse is the parsed JSON from a successful HTTP response from our proxy
+                if (!proxyResponse.success) { // Check our custom 'success' flag from the proxy
+                    selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not retrieve details for "${title}" from OMDb. ${proxyResponse.message || 'Unknown OMDb error (proxy success false).'}</p>`;
+                    return;
+                }
+                
+                // If proxyResponse.success is true, then proxyResponse.data contains the actual OMDb data (or OMDb's error structure if OMDb itself failed logically)
+                const omdbData = proxyResponse.data; 
+
+                if (!omdbData || omdbData.Response !== 'True' || !omdbData.imdbID) { // Check actual OMDb data inside proxyResponse.data
+                    selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not retrieve details for "${title}" from OMDb. ${omdbData && omdbData.Error ? omdbData.Error : 'OMDb data invalid or movie not found.'}</p>`;
                     return;
                 }
 
@@ -354,17 +406,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify(omdbData) // Send full OMDb data
+                    body: JSON.stringify(omdbData) // Send full OMDb data (which is proxyResponse.data)
                 })
-                .then(response => response.json())
+                .then(response => { // Check HTTP status for local DB operation
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || `Local DB op HTTP error ${response.status}`);
+                        }).catch(() => {
+                             throw new Error(`Local DB op HTTP error ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(localDbData => {
-                    if (!localDbData.success || !localDbData.movie_id) {
-                        selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Error processing movie with local database: ${localDbData.message || 'Unknown error.'}</p>`;
+                    if (!localDbData.success || !localDbData.data || !localDbData.data.movie_id) { // Check our custom 'success' and expected data structure
+                        selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Error processing movie with local database: ${localDbData.message || 'Unknown error (local DB success false or missing data).'}</p>`;
                         return;
                     }
 
                     // Step 3: Display details and provide actions
-                    const local_movie_id = localDbData.movie_id;
+                    const local_movie_id = localDbData.data.movie_id;
                     const movie_page_url = `{{ url_for('movie_page', movie_id=0) }}`.replace('0', local_movie_id);
                     
                     let detailsHtml = `<h5 style="margin-bottom: 10px; font-size: 1.1em;">${omdbData.Title} (${omdbData.Year || 'N/A'})</h5>`;
@@ -377,10 +438,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     detailsHtml += `<p style="font-size:0.9em; margin-bottom:5px;">${omdbData.Plot ? omdbData.Plot.substring(0, 150) + '...' : 'Plot not available.'}</p>`;
                     
                     if (currentUserId) { 
-                        detailsHtml += `<a href="${movie_page_url}" class="custom-button custom-button-small" style="margin-top: 5px;">View Movie Details</a>`;
+                        detailsHtml += `<button onclick="window.location.href='${movie_page_url}'" class="custom-button custom-button-ai">View Movie Details</button>`;
                     } else {
                          detailsHtml += `<p style="font-size:0.9em; margin-bottom: 5px;">Log in to add this movie to your list.</p>`;
-                         detailsHtml += `<a href="${movie_page_url}" class="custom-button custom-button-small" style="display: inline-block; margin-top: 8px;">View Movie Details</a>`;
+                         detailsHtml += `<button onclick="window.location.href='${movie_page_url}'" class="custom-button custom-button-ai" style="margin-top: 8px;">View Movie Details</button>`;
                     }
                     detailsHtml += `</div></div>`;
                     selectedMovieDetailsDiv.innerHTML = detailsHtml;
@@ -392,29 +453,56 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error fetching from OMDb Proxy:', error);
+                // This catch handles network errors from fetch, or errors thrown from the .then() blocks regarding the proxy call
                 selectedMovieDetailsDiv.innerHTML = `<p style="color: red;">Could not fetch details from OMDb: ${error.message}</p>`;
             });
     }
 
-    // Comment Submission Logic / Logik für das Einreichen von Kommentaren
-    const commentForm = document.getElementById('commentForm');
-    const commentMessageDiv = document.getElementById('commentMessage');
-    const commentsListDiv = document.getElementById('commentsList');
+    // Function to format date as YYYY-MM-DD HH:MM
+    // Funktion zur Formatierung des Datums als YYYY-MM-DD HH:MM
+    function formatDate(isoString) {
+        if (!isoString) return 'No date';
+        const date = new Date(isoString);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
 
-    if (commentForm && currentMovieId) {
+    // Function to display status messages for comment submission
+    // Funktion zur Anzeige von Statusmeldungen für die Kommentarübermittlung
+    function displayCommentStatus(message, isSuccess) {
+        const statusDiv = document.getElementById('comment-status-message');
+        if (statusDiv) {
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = isSuccess ? '#28a745' : '#dc3545'; // Green for success, Red for error / Grün für Erfolg, Rot für Fehler
+            statusDiv.style.color = 'white';
+            // Hide message after 5 seconds / Nachricht nach 5 Sekunden ausblenden
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    // Submit comment via Fetch API
+    // Kommentar über Fetch-API senden
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
         commentForm.addEventListener('submit', function(event) {
             event.preventDefault();
-            const commentText = document.getElementById('comment_text').value.trim();
+            const commentText = document.getElementById('comment_text').value;
             const csrfToken = this.querySelector('input[name="csrf_token"]').value;
-            commentMessageDiv.textContent = '';
+            const movieId = "{{ movie.id }}"; // Get movie ID from template / Film-ID aus Vorlage holen
+            const url = `/movie/${movieId}/comment/page`;
 
-            if (!commentText) {
-                commentMessageDiv.textContent = 'Comment cannot be empty. / Kommentar darf nicht leer sein.';
-                commentMessageDiv.style.color = '#dc3545';
-                return;
-            }
+            // Clear previous status messages / Vorherige Statusmeldungen löschen
+            const statusDiv = document.getElementById('comment-status-message');
+            if (statusDiv) statusDiv.style.display = 'none';
 
-            fetch(`/movie/${currentMovieId}/comment/page`, {
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -422,27 +510,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ comment_text: commentText })
             })
-            // .then(response => response.json()) // Entfernen oder anpassen, da Server 302 redirectet
             .then(response => {
-                if (response.ok || response.redirected) { // Prüfe auf Erfolg (2xx) oder Redirect (3xx)
-                    document.getElementById('comment_text').value = ''; // Clear textarea
-                    window.location.reload(); // Seite neu laden, um Kommentar und Flash anzuzeigen
+                // We need to parse JSON regardless of response.ok to get the message
+                // Wir müssen JSON unabhängig von response.ok parsen, um die Nachricht zu erhalten
+                return response.json().then(data => ({ status: response.status, body: data }));
+            })
+            .then(({ status, body }) => {
+                if (status === 201 && body.success) {
+                    displayCommentStatus(body.message || 'Comment added successfully!', true);
+                    document.getElementById('comment_text').value = ''; // Clear textarea / Textarea leeren
+
+                    // Dynamically add the new comment to the list
+                    // Neuen Kommentar dynamisch zur Liste hinzufügen
+                    const commentsList = document.getElementById('commentsList');
+                    const newCommentDiv = document.createElement('div');
+                    newCommentDiv.classList.add('comment-item');
+                    newCommentDiv.innerHTML = `
+                        <p><strong>${body.user_name || 'User'}:</strong></p>
+                        <p>${body.comment_text || ''}</p>
+                        <small>${formatDate(body.created_at)}</small>
+                    `;
+                    // Prepend the new comment so it appears at the top
+                    // Neuen Kommentar voranstellen, damit er oben erscheint
+                    commentsList.insertBefore(newCommentDiv, commentsList.firstChild);
+
+                    // Hide "No comments yet" message if it exists and is visible
+                    // "No comments yet"-Nachricht ausblenden, falls vorhanden und sichtbar
+                    const noCommentsMsg = document.getElementById('no-comments-message');
+                    if (noCommentsMsg) {
+                        noCommentsMsg.style.display = 'none';
+                    }
+                    // No page reload needed / Kein Neuladen der Seite erforderlich
                 } else {
-                    // Versuche, eine Fehlermeldung aus dem Body zu lesen, falls es JSON ist
-                    return response.json().then(errData => {
-                        commentMessageDiv.textContent = errData.message || 'Could not post comment. Check server logs.';
-                        commentMessageDiv.style.color = '#dc3545';
-                    }).catch(() => {
-                        // Fallback, wenn der Body kein JSON ist oder ein anderer Fehler auftritt
-                        commentMessageDiv.textContent = 'Could not post comment. Status: ' + response.status;
-                        commentMessageDiv.style.color = '#dc3545';
-                    });
+                    // Handle errors (e.g., 400, 401, 500) or if body.success is false
+                    // Fehlerbehandlung (z.B. 400, 401, 500) oder wenn body.success false ist
+                    displayCommentStatus(body.message || 'Could not submit comment. Please try again.', false);
                 }
             })
             .catch(error => {
-                console.error('Error posting comment:', error);
-                commentMessageDiv.textContent = 'An error occurred. Please try again. / Ein Fehler ist aufgetreten. Bitte erneut versuchen.';
-                commentMessageDiv.style.color = '#dc3545';
+                console.error('Error submitting comment:', error);
+                displayCommentStatus('An unexpected error occurred. Please try again later.', false);
             });
         });
     }

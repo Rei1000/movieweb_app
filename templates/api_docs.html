@@ -6,7 +6,7 @@
 <div class="container">
     <h1 class="mb-4">API Documentation</h1>
     
-    <!-- English Version / Englische Version -->
+    <!-- English Version -->
     <div class="card bg-dark text-light mb-4">
         <div class="card-body">
             <h2 class="card-title h4">Overview</h2>
@@ -17,8 +17,14 @@
                 Base URL: <code>{{ request.host_url }}api/</code>
             </p>
             <p>
-                All responses are in JSON format.
+                All responses are in JSON format and generally follow this structure:
             </p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>{
+    "success": true, // boolean, true if the request was successful, false otherwise
+    "data": { ... }, // object or null, contains the requested data on success
+    "message": "Descriptive message." // string or null, provides more information
+}</code></pre>
+            <p>Specific status codes (200, 201, 400, 404, etc.) will be used as appropriate.</p>
         </div>
     </div>
 
@@ -74,7 +80,7 @@
                         <tr>
                             <th>Method</th>
                             <th>Endpoint</th>
-                            <th>Description / Beschreibung</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,45 +88,49 @@
                             <td>GET</td>
                             <td><code>/users</code></td>
                             <td>
-                                Returns a list of all users (ID, name, movie count).
+                                Returns a list of all users (ID, name, movie count). Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/users/{user_id}</code></td>
                             <td>
-                                Returns details of a specific user, including their movie list.
+                                Returns details of a specific user, including their movie list. Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/users/{user_id}/movies</code></td>
                             <td>
-                                Returns all movies (title, director, year, rating, poster) of a specific user.
+                                Returns all movies (title, director, year, rating, poster) of a specific user. Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>POST</td>
                             <td><code>/users/{user_id}/movies</code></td>
                             <td>
-                                Adds a new movie to a user's favorites list. Expects a JSON body with movie information (see example request) and CSRF-Schutz.
-                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                                Adds a new movie to a user's favorites list. Expects a JSON body with movie information (see example request).
+                                <br>Responses (201 Created, 400 Bad Request, 404 Not Found, 409 Conflict) follow standard JSON format.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header. User must be logged in and authorized.
                             </td>
                         </tr>
                         <tr>
-                            <td>POST</td>
-                            <td><code>/users/{user_id}/movies/{movie_id}/rate</code></td>
+                            <td>PUT</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}</code></td>
                             <td>
                                 Updates the personal rating for a specific movie in a user's list.
-                                <br><strong>Requires:</strong> JSON Body (e.g., <code>{"rating": 4.5}</code> oder <code>{"rating": null}</code> um Rating zu entfernen), <code>X-CSRFToken</code> Header.
+                                <br>Expects JSON Body: <code>{"rating": 4.5}</code> (float 0-5) or <code>{"rating": null}</code> to remove rating.
+                                <br>Responses (200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found) follow standard JSON format.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header. User must be logged in and authorized for the specified user_id.
                             </td>
                         </tr>
                         <tr>
                             <td>DELETE</td>
                             <td><code>/users/{user_id}/movies/{movie_id}</code></td>
                             <td>
-                                Entfernt einen Film aus der Liste eines bestimmten Benutzers.
-                                <br><strong>Benötigt:</strong> <code>X-CSRFToken</code> Header.
+                                Removes a movie from a specific user's list.
+                                <br>Responses (200 OK, 404 Not Found) follow standard JSON format.
+                                <br><strong>Requires:</strong> <code>X-CSRFToken</code> Header. User must be logged in and authorized for the specified user_id.
                             </td>
                         </tr>
                     </tbody>
@@ -134,7 +144,7 @@
                         <tr>
                             <th>Method</th>
                             <th>Endpoint</th>
-                            <th>Description / Beschreibung</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,36 +152,38 @@
                             <td>GET</td>
                             <td><code>/movies</code></td>
                             <td>
-                                Returns a list of all movies in the database (ID, title, director, year, rating, poster).
+                                Returns a list of all movies in the database. Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/movies/{movie_id}</code></td>
                             <td>
-                                Returns detailed information about a specific movie, including all movie details and comments.
+                                Returns detailed information about a specific movie, including all movie details and its comments. Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/movies/{movie_id}/comments</code></td>
                             <td>
-                                Returns all comments for a specific movie.
+                                Returns all comments for a specific movie. Response follows standard JSON format.
                             </td>
                         </tr>
                         <tr>
                             <td>POST</td>
                             <td><code>/movies/{movie_id}/comments</code></td>
                             <td>
-                                Fügt einen neuen Kommentar zu einem bestimmten Film hinzu. Benutzer muss eingeloggt sein (Session-basiert).
-                                <br><strong>Benötigt:</strong> Formulardaten (<code>text=&lt;kommentartext&gt;</code>), <code>X-CSRFToken</code> Header (wenn via AJAX von clientseitigem JS gesendet, das CSRF handhabt).
+                                Adds a new comment to a specific movie. User must be logged in (session-based).
+                                <br>Responses (201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error) follow standard JSON format.
+                                <br><strong>Requires:</strong> Form data (<code>text=&lt;comment_text&gt;</code>), <code>X-CSRFToken</code> Header. User must be logged in.
                             </td>
                         </tr>
                         <tr>
                             <td>POST</td>
                             <td><code>/check_or_create_movie_by_imdb</code></td>
                             <td>
-                                Checks if a movie with the given <code>imdbID</code> exists. If not, it's created globally. Expects a JSON body with OMDb-ähnlichen Filmdaten (mindestens <code>imdbID</code>) und CSRF-Schutz.
+                                Checks if a movie with the given <code>imdbID</code> exists. If not, it's created globally. Expects a JSON body with OMDb-like movie data (at least <code>imdbID</code>).
+                                <br>Responses (200 OK if exists, 201 Created if new, 400 Bad Request, 500 Internal Server Error) follow standard JSON format.
                                 <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header.
                             </td>
                         </tr>
@@ -186,7 +198,7 @@
                         <tr>
                             <th>Method</th>
                             <th>Endpoint</th>
-                            <th>Description / Beschreibung</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -194,8 +206,92 @@
                             <td>GET</td>
                             <td><code>/omdb_proxy?title=&lt;search_title&gt;&amp;year=&lt;year_optional&gt;</code></td>
                             <td>
-                                Forwards a search request to the external OMDb-API. Returns the JSON response from OMDb.
+                                Forwards a search request to the external OMDb-API. Returns the OMDb response within the standard JSON format (under the `data` key).
+                                <br>Responses (200 OK, 400 Bad Request, 404 Not Found, 500/503 Service Error) follow standard JSON format.
                                 <br>Requires query parameters: <code>title</code> (mandatory), <code>year</code> (optional).
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">UI Interaction Endpoints (JSON Responses)</h2>
+            <p>
+                These endpoints are part of the main application (<code>app.py</code>) and are primarily used for dynamic UI updates via JavaScript. They also return responses in the standard JSON format.
+                CSRF protection applies where state-changing operations occur.
+            </p>
+
+            <h3 class="h5 mt-4">Authentication</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/login</code></td>
+                            <td>
+                                Authenticates a user. Expects form data: <code>username</code>.
+                                <br>Responses (200 OK, 401 Unauthorized) follow standard JSON format.
+                                <br><strong>Requires:</strong> Form data, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/register</code></td>
+                            <td>
+                                Registers a new user. Expects form data: <code>username</code>.
+                                <br>Responses (201 Created, 400 Bad Request, 409 Conflict) follow standard JSON format.
+                                <br><strong>Requires:</strong> Form data, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="h5 mt-4">Movie Interaction</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movie/{movie_id}</code></td>
+                            <td>
+                                Returns detailed movie information and its comments (UI-focused JSON endpoint).
+                                <br>Response (200 OK, 404 Not Found) follows standard JSON format.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/movie/{movie_id}/comment/page</code></td>
+                            <td>
+                                Adds a comment to a movie (from movie detail page). Expects JSON body: <code>{"comment_text": "..."}</code>.
+                                <br>Responses (201 Created, 400 Bad Request, 401 Unauthorized, 500 Internal Server Error) follow standard JSON format.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header. User must be logged in.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movie/{movie_id}/ai_recommendations</code></td>
+                            <td>
+                                Fetches AI-based movie recommendations for a given movie.
+                                <br>Response (200 OK, 404 Not Found, 503 Service Unavailable) follows standard JSON format.
                             </td>
                         </tr>
                     </tbody>
@@ -221,59 +317,68 @@
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/movies/1"</code></pre>
             
             <h3 class="h5 mt-3">Add Movie to User's List (POST)</h3>
-            <p><em>Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. The CSRF token must be obtained as described above. Assumes user is logged in if endpoint implicitly requires it. / Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. Der CSRF-Token muss wie oben beschrieben bezogen werden. Geht davon aus, dass der Benutzer eingeloggt ist, falls der Endpunkt dies implizit erfordert.</em></p>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. The CSRF token must be obtained as described above. Assumes user is logged in and authorized for <code>&lt;user_id&gt;</code>.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies" \
 -H "Content-Type: application/json" \
--H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" \
 -d '{
     "title": "Inception",
     "director": "Christopher Nolan",
     "year": 2010,
-    "rating": 5,
+    "user_rating": 5,
     "poster_url": "https://link.to/poster.jpg",
-    "plot": "Ein bewusstseinsverändernder Thriller.",
+    "plot": "A mind-bending thriller.",
     "runtime": "148 min",
     "genre": "Sci-Fi, Thriller",
-    "imdb_id": "tt1375666"
+    "imdb_id": "tt1375666",
+    "actors": "Leonardo DiCaprio, Joseph Gordon-Levitt, Ellen Page",
+    "writer": "Christopher Nolan",
+    "country": "USA, UK",
+    "language": "English, Japanese, French",
+    "awards": "Won 4 Oscars. Another 152 wins & 217 nominations.",
+    "metascore": "74",
+    "rated_omdb": "PG-13",
+    "omdb_rating_for_community": 4.1
 }'</code></pre>
 
-            <h3 class="h5 mt-3">Rate Movie for User (POST) / Film für Benutzer bewerten (POST)</h3>
-            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. / Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
-            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+            <h3 class="h5 mt-3">Update User's Movie Rating (PUT)</h3>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_VALUE&gt;</code>, and <code>&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;</code> with actual values.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X PUT "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
--b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" \
 -d '{"rating": 4.0}'</code></pre>
-            <p>To remove a rating: / Um eine Bewertung zu entfernen:</p>
-            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+            <p>To remove a rating:</p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X PUT "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
--b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" {# English: session cookie value if needed / Deutsch: Session-Cookie-Wert falls nötig #}
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" \
 -d '{"rating": null}'</code></pre>
 
-            <h3 class="h5 mt-3">Film von Benutzerliste entfernen (DELETE)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
+            <h3 class="h5 mt-3">Remove Movie from User's List (DELETE)</h3>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_VALUE&gt;</code> and <code>&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;</code> with actual values.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X DELETE "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
--H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;"</code></pre>
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;"</code></pre>
 
-            <h3 class="h5 mt-3">Kommentar zu Film hinzufügen (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code>. Dies setzt voraus, dass der Session-Cookie den eingeloggten Benutzer korrekt identifiziert.</em></p>
+            <h3 class="h5 mt-3">Add Comment to Movie (POST)</h3>
+            <p><em>Note: Replace <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_VALUE&gt;</code> and <code>&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;</code>. This assumes the session cookie correctly identifies the logged-in user.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/movies/&lt;movie_id&gt;/comments" \
 -H "Content-Type: application/x-www-form-urlencoded" \
--H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
--d "text=Das+ist+ein+großartiger+Film!"</code></pre>
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" \
+-d "text=This+is+a+great+movie!"</code></pre>
 
-            <h3 class="h5 mt-3">Film prüfen/erstellen via IMDb ID (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch einen tatsächlichen Wert.</em></p>
+            <h3 class="h5 mt-3">Check/Create Movie via IMDb ID (POST)</h3>
+            <p><em>Note: Replace <code>&lt;CSRF_TOKEN_VALUE&gt;</code> and <code>&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;</code> with actual values.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/check_or_create_movie_by_imdb" \
 -H "Content-Type: application/json" \
--H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
+-H "X-CSRFToken: &lt;CSRF_TOKEN_VALUE&gt;" \
+-b "session=&lt;SESSION_COOKIE_VALUE_IF_NEEDED&gt;" \
 -d '{
     "imdbID": "tt0111161",
-    "Title": "Die Verurteilten",
+    "Title": "The Shawshank Redemption",
     "Year": "1994",
     "Rated": "R",
     "Released": "14 Oct 1994",
@@ -282,14 +387,18 @@
     "Director": "Frank Darabont",
     "Writer": "Stephen King, Frank Darabont",
     "Actors": "Tim Robbins, Morgan Freeman, Bob Gunton",
-    "Plot": "Zwei im Gefängnis sitzende Männer freunden sich über mehrere Jahre an und finden Trost und letztendlich Erlösung durch alltägliche Anstandsbekundungen.",
+    "Plot": "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
     "Language": "English",
     "Country": "USA",
-    "Awards": "Nominiert für 7 Oscars. Weitere 21 Gewinne & 36 Nominierungen.",
+    "Awards": "Nominated for 7 Oscars. Another 21 wins & 36 nominations.",
     "Poster": "https://m.media-amazon.com/images/M/MV5BMDFkYTc0MGEtZmNhMC00ZDIzLWFmNTEtODM1ZmRlYWMwMWFmXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_SX300.jpg",
     "imdbRating": "9.3",
     "Metascore": "80"
 }'</code></pre>
+
+            <h3 class="h5 mt-3">OMDb Proxy (GET)</h3>
+            <p><em>Note: Replace <code>&lt;search_title&gt;</code> with a URL-encoded movie title. Year is optional.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/omdb_proxy?title=&lt;search_title&gt;&amp;year=&lt;optional_year&gt;"</code></pre>
         </div>
     </div>
 
@@ -306,8 +415,14 @@
                 Basis-URL: <code>{{ request.host_url }}api/</code>
             </p>
             <p>
-                Alle Antworten erfolgen im JSON-Format.
+                Alle Antworten erfolgen im JSON-Format und folgen generell dieser Struktur:
             </p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>{
+    "success": true, // boolean, true wenn die Anfrage erfolgreich war, sonst false
+    "data": { ... }, // Objekt oder null, enthält bei Erfolg die angeforderten Daten
+    "message": "Beschreibende Nachricht." // string oder null, liefert zusätzliche Informationen
+}</code></pre>
+            <p>Spezifische Statuscodes (200, 201, 400, 404, etc.) werden entsprechend verwendet.</p>
         </div>
     </div>
 
@@ -371,37 +486,40 @@
                             <td>GET</td>
                             <td><code>/users</code></td>
                             <td>
-                                Gibt eine Liste aller Benutzer zurück (ID, Name, Anzahl Filme).
+                                Gibt eine Liste aller Benutzer zurück (ID, Name, Anzahl Filme). Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/users/{user_id}</code></td>
                             <td>
-                                Gibt Details eines bestimmten Benutzers zurück, inklusive seiner Filmliste.
+                                Gibt Details eines bestimmten Benutzers zurück, inklusive seiner Filmliste. Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/users/{user_id}/movies</code></td>
                             <td>
-                                Gibt alle Filme (Titel, Regisseur, Jahr, Rating, Poster) eines bestimmten Benutzers zurück.
+                                Gibt alle Filme (Titel, Regisseur, Jahr, Rating, Poster) eines bestimmten Benutzers zurück. Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                         <tr>
                             <td>POST</td>
                             <td><code>/users/{user_id}/movies</code></td>
                             <td>
-                                Fügt einen neuen Film zur Favoritenliste eines Benutzers hinzu. Erfordert einen JSON-Body mit Filminformationen (siehe Beispielanfrage) und CSRF-Schutz.
-                                <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header.
+                                Fügt einen neuen Film zur Favoritenliste eines Benutzers hinzu. Erfordert einen JSON-Body mit Filminformationen (siehe Beispielanfrage).
+                                <br>Antworten (201 Created, 400 Bad Request, 404 Not Found, 409 Conflict) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header. Benutzer muss eingeloggt und für user_id autorisiert sein.
                             </td>
                         </tr>
                         <tr>
-                            <td>POST</td>
-                            <td><code>/users/{user_id}/movies/{movie_id}/rate</code></td>
+                            <td>PUT</td>
+                            <td><code>/users/{user_id}/movies/{movie_id}</code></td>
                             <td>
                                 Aktualisiert das persönliche Rating für einen bestimmten Film in der Liste eines Benutzers.
-                                <br><strong>Benötigt:</strong> JSON Body (z.B. <code>{"rating": 4.5}</code> oder <code>{"rating": null}</code> um Rating zu entfernen), <code>X-CSRFToken</code> Header.
+                                <br>Erwartet JSON Body: <code>{"rating": 4.5}</code> (float 0-5) oder <code>{"rating": null}</code> um Rating zu entfernen.
+                                <br>Antworten (200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header. Benutzer muss eingeloggt und für user_id autorisiert sein.
                             </td>
                         </tr>
                         <tr>
@@ -409,7 +527,8 @@
                             <td><code>/users/{user_id}/movies/{movie_id}</code></td>
                             <td>
                                 Entfernt einen Film aus der Liste eines bestimmten Benutzers.
-                                <br><strong>Benötigt:</strong> <code>X-CSRFToken</code> Header.
+                                <br>Antworten (200 OK, 404 Not Found) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> <code>X-CSRFToken</code> Header. Benutzer muss eingeloggt und für user_id autorisiert sein.
                             </td>
                         </tr>
                     </tbody>
@@ -431,21 +550,21 @@
                             <td>GET</td>
                             <td><code>/movies</code></td>
                             <td>
-                                Gibt eine Liste aller Filme in der Datenbank zurück (ID, Titel, Regisseur, Jahr, Rating, Poster).
+                                Gibt eine Liste aller Filme in der Datenbank zurück. Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/movies/{movie_id}</code></td>
                             <td>
-                                Gibt detaillierte Informationen zu einem bestimmten Film zurück, inklusive aller Filmdetails und Kommentare.
+                                Gibt detaillierte Informationen zu einem bestimmten Film zurück, inklusive aller Filmdetails und seiner Kommentare. Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                         <tr>
                             <td>GET</td>
                             <td><code>/movies/{movie_id}/comments</code></td>
                             <td>
-                                Gibt alle Kommentare zu einem bestimmten Film zurück.
+                                Gibt alle Kommentare zu einem bestimmten Film zurück. Antwort folgt Standard-JSON-Format.
                             </td>
                         </tr>
                          <tr>
@@ -453,14 +572,16 @@
                             <td><code>/movies/{movie_id}/comments</code></td>
                             <td>
                                 Fügt einen neuen Kommentar zu einem bestimmten Film hinzu. Benutzer muss eingeloggt sein (Session-basiert).
-                                <br><strong>Benötigt:</strong> Formulardaten (<code>text=&lt;kommentartext&gt;</code>), <code>X-CSRFToken</code> Header (wenn via AJAX von clientseitigem JS gesendet, das CSRF handhabt).
+                                <br>Antworten (201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> Formulardaten (<code>text=&lt;kommentartext&gt;</code>), <code>X-CSRFToken</code> Header. Benutzer muss eingeloggt sein.
                             </td>
                         </tr>
                         <tr>
                             <td>POST</td>
                             <td><code>/check_or_create_movie_by_imdb</code></td>
                             <td>
-                                Prüft, ob ein Film mit der gegebenen <code>imdbID</code> existiert. Wenn nicht, wird er global erstellt. Erfordert einen JSON-Body mit OMDb-ähnlichen Filmdaten (mindestens <code>imdbID</code>) und CSRF-Schutz.
+                                Prüft, ob ein Film mit der gegebenen <code>imdbID</code> existiert. Wenn nicht, wird er global erstellt. Erfordert einen JSON-Body mit OMDb-ähnlichen Filmdaten (mindestens <code>imdbID</code>).
+                                <br>Antworten (200 OK wenn existiert, 201 Created wenn neu, 400 Bad Request, 500 Internal Server Error) folgen Standard-JSON-Format.
                                 <br><strong>Benötigt:</strong> JSON Body, <code>X-CSRFToken</code> Header.
                             </td>
                         </tr>
@@ -483,8 +604,92 @@
                             <td>GET</td>
                             <td><code>/omdb_proxy?title=&lt;suchtitel&gt;&amp;year=&lt;jahr_optional&gt;</code></td>
                             <td>
-                                Leitet eine Suchanfrage an die externe OMDb-API weiter. Gibt die JSON-Antwort von OMDb zurück.
-                                <br>Erfordert Query-Parameter: <code>title</code> (obligatorisch), <code>year</code> (optional).
+                                Leitet eine Suchanfrage an die externe OMDb-API weiter. Gibt die OMDb-Antwort innerhalb des Standard-JSON-Formats zurück (unter dem `data`-Schlüssel).
+                                <br>Antworten (200 OK, 400 Bad Request, 404 Not Found, 500/503 Service Error) folgen Standard-JSON-Format.
+                                <br>Requires query parameters: <code>title</code> (obligatorisch), <code>year</code> (optional).
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h2 class="card-title h4">UI-Interaktions-Endpunkte (JSON-Antworten)</h2>
+            <p>
+                Diese Endpunkte sind Teil der Hauptanwendung (<code>app.py</code>) und werden primär für dynamische UI-Aktualisierungen via JavaScript verwendet. Sie geben ebenfalls Antworten im Standard-JSON-Format zurück.
+                CSRF-Schutz greift bei zustandsändernden Operationen.
+            </p>
+
+            <h3 class="h5 mt-4">Authentifizierung</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Methode</th>
+                            <th>Endpunkt</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/login</code></td>
+                            <td>
+                                Authentifiziert einen Benutzer. Erwartet Formulardaten: <code>username</code>.
+                                <br>Antworten (200 OK, 401 Unauthorized) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> Formulardaten, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/register</code></td>
+                            <td>
+                                Registriert einen neuen Benutzer. Erwartet Formulardaten: <code>username</code>.
+                                <br>Antworten (201 Created, 400 Bad Request, 409 Conflict) folgen Standard-JSON-Format.
+                                <br><strong>Benötigt:</strong> Formulardaten, <code>X-CSRFToken</code> Header.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="h5 mt-4">Film-Interaktion</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Methode</th>
+                            <th>Endpunkt</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movie/{movie_id}</code></td>
+                            <td>
+                                Gibt detaillierte Filminformationen und Kommentare zurück (UI-fokussierter JSON-Endpunkt).
+                                <br>Response (200 OK, 404 Not Found) follows standard JSON format.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/movie/{movie_id}/comment/page</code></td>
+                            <td>
+                                Fügt einen Kommentar zu einem Film hinzu (von Filmdetailseite). Expects JSON body: <code>{"comment_text": "..."}</code>.
+                                <br>Responses (201 Created, 400 Bad Request, 401 Unauthorized, 500 Internal Server Error) follow standard JSON format.
+                                <br><strong>Requires:</strong> JSON Body, <code>X-CSRFToken</code> Header. User must be logged in.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/movie/{movie_id}/ai_recommendations</code></td>
+                            <td>
+                                Ruft KI-basierte Filmempfehlungen für einen gegebenen Film ab.
+                                <br>Response (200 OK, 404 Not Found, 503 Service Unavailable) follows standard JSON format.
                             </td>
                         </tr>
                     </tbody>
@@ -510,45 +715,53 @@
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/movies/1"</code></pre>
             
             <h3 class="h5 mt-3">Film zur Benutzerliste hinzufügen (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. Der CSRF-Token muss wie oben beschrieben bezogen werden. Geht davon aus, dass der Benutzer eingeloggt ist, falls der Endpunkt dies implizit erfordert. / Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values. The CSRF token must be obtained as described above. Assumes user is logged in if endpoint implicitly requires it.</em></p>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code> and <code>&lt;CSRF_TOKEN_WERT&gt;</code> with actual values. The CSRF token must be obtained as described above. Geht davon aus, dass der Benutzer eingeloggt und für <code>&lt;user_id&gt;</code> autorisiert ist.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
 -d '{
     "title": "Inception",
     "director": "Christopher Nolan",
     "year": 2010,
-    "rating": 5,
+    "user_rating": 5,
     "poster_url": "https://link.to/poster.jpg",
     "plot": "Ein bewusstseinsverändernder Thriller.",
     "runtime": "148 min",
     "genre": "Sci-Fi, Thriller",
-    "imdb_id": "tt1375666"
+    "imdb_id": "tt1375666",
+    "actors": "Leonardo DiCaprio, Joseph Gordon-Levitt, Ellen Page",
+    "writer": "Christopher Nolan",
+    "country": "USA, UK",
+    "language": "English, Japanese, French",
+    "awards": "Won 4 Oscars. Another 152 wins & 217 nominations.",
+    "metascore": "74",
+    "rated_omdb": "PG-13",
+    "omdb_rating_for_community": 4.1
 }'</code></pre>
 
-            <h3 class="h5 mt-3">Film für Benutzer bewerten (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte. / Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> and <code>&lt;CSRF_TOKEN_VALUE&gt;</code> with actual values.</em></p>
-            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+            <h3 class="h5 mt-3">Filmbewertung eines Benutzers aktualisieren (PUT)</h3>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_WERT&gt;</code> und <code>&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;</code> durch tatsächliche Werte.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X PUT "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
 -d '{"rating": 4.0}'</code></pre>
-            <p>Um eine Bewertung zu entfernen: / To remove a rating:</p>
-            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;/rate" \
+            <p>Um eine Bewertung zu entfernen:</p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X PUT "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
--b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" {# Deutsch: Session-Cookie-Wert falls nötig / English: session cookie value if needed #}
+-b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;" \
 -d '{"rating": null}'</code></pre>
 
             <h3 class="h5 mt-3">Film von Benutzerliste entfernen (DELETE)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch tatsächliche Werte.</em></p>
+            <p><em>Note: Replace <code>&lt;user_id&gt;</code>, <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_WERT&gt;</code> und <code>&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;</code> durch tatsächliche Werte.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X DELETE "{{ request.host_url }}api/users/&lt;user_id&gt;/movies/&lt;movie_id&gt;" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
 -b "session=&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;"</code></pre>
 
             <h3 class="h5 mt-3">Kommentar zu Film hinzufügen (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;movie_id&gt;</code> und <code>&lt;CSRF_TOKEN_WERT&gt;</code>. Dies setzt voraus, dass der Session-Cookie den eingeloggten Benutzer korrekt identifiziert.</em></p>
+            <p><em>Note: Replace <code>&lt;movie_id&gt;</code>, <code>&lt;CSRF_TOKEN_WERT&gt;</code> und <code>&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;</code>. Dies setzt voraus, dass der Session-Cookie den eingeloggten Benutzer korrekt identifiziert.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/movies/&lt;movie_id&gt;/comments" \
 -H "Content-Type: application/x-www-form-urlencoded" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
@@ -556,7 +769,7 @@
 -d "text=Das+ist+ein+großartiger+Film!"</code></pre>
 
             <h3 class="h5 mt-3">Film prüfen/erstellen via IMDb ID (POST)</h3>
-            <p><em>Hinweis: Ersetzen Sie <code>&lt;CSRF_TOKEN_WERT&gt;</code> durch einen tatsächlichen Wert.</em></p>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;CSRF_TOKEN_WERT&gt;</code> und <code>&lt;SESSION_COOKIE_WERT_FALLS_NOETIG&gt;</code> durch einen tatsächlichen Wert.</em></p>
             <pre class="bg-secondary text-light p-3 rounded"><code>curl -X POST "{{ request.host_url }}api/check_or_create_movie_by_imdb" \
 -H "Content-Type: application/json" \
 -H "X-CSRFToken: &lt;CSRF_TOKEN_WERT&gt;" \
@@ -580,6 +793,10 @@
     "imdbRating": "9.3",
     "Metascore": "80"
 }'</code></pre>
+
+            <h3 class="h5 mt-3">OMDb Proxy (GET)</h3>
+            <p><em>Hinweis: Ersetzen Sie <code>&lt;suchtitel&gt;</code> durch einen URL-kodierten Filmtitel. Jahr ist optional.</em></p>
+            <pre class="bg-secondary text-light p-3 rounded"><code>curl -X GET "{{ request.host_url }}api/omdb_proxy?title=&lt;suchtitel&gt;&amp;year=&lt;optionales_jahr&gt;"</code></pre>
         </div>
     </div>
 
