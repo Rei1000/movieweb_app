@@ -6,13 +6,13 @@
 {% block styles %}
 <style>
     .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem; /* Some bottom margin / Etwas Abstand nach unten */
+        margin-bottom: 1.5rem;
+        width: 100%;
     }
     .page-header h1 {
-        margin-bottom: 0; /* Remove default h1 margin for better vertical alignment / Entfernt den Standard-Margin der h1, um die vertikale Zentrierung zu verbessern */
+        margin-bottom: 0;
+        text-align: center;
+        width: 100%;
     }
 
     .movie-grid {
@@ -20,6 +20,7 @@
         grid-template-columns: repeat(auto-fit, 320px); /* Changed to fixed 320px column width / Geändert auf feste 320px Spaltenbreite */
         gap: 1.5rem;
         padding: 1rem; /* Default padding / Standard-Padding */
+        justify-content: center; /* Center the grid items / Zentriere die Grid-Elemente */
     }
     @media (min-width: 576px) { .movie-grid { padding: 1.5rem; } }
     /* At 992px and above, padding remains at 1.5rem to allow more space for cards / Bei 992px und darüber bleibt das Padding bei 1.5rem, um mehr Platz für Karten zu lassen */
@@ -151,9 +152,6 @@
 {% block content %}
 <div class="page-header">
     <h1>{{ user.name }}'s Movie List</h1>
-    <a href="{{ url_for('add_movie', user_id=user.id) }}" class="custom-button">
-        Add Movie
-    </a>
 </div>
 
 {% if user_movie_relations %}

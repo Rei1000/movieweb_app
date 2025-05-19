@@ -262,4 +262,38 @@ The application provides a RESTful API for programmatic access to its data. For 
 ## License / Lizenz
 
 [MIT License] (./LICENSE) (Assuming MIT, placeholder)
-*([MIT-Lizenz] (./LICENSE) (Angenommen MIT, Platzhalter))* 
+*([MIT-Lizenz] (./LICENSE) (Angenommen MIT, Platzhalter))*
+
+## Screenshots
+
+**Login & Top 10 Filme**
+
+![Login und Top 10](static/img/login%20mit%20top%2010.png)
+
+**Eigene Filmliste eines Nutzers**
+
+![Eigene Movielist](static/img/eigene%20Movielist.png)
+
+**Ausschnitt Top 10 Ansicht**
+
+![Top 10 Ansicht](static/img/Auszug%20top%2010%20ansicht.png)
+
+**KI-Suchfunktion & Kommentarfunktion**
+
+![KI-Suche und Kommentar](static/img/ai%20suchfunktion%20und%20kommentar%20funktion.png)
+
+**Detailkarte mit KI-Suchvorschlägen**
+
+![Detailkarte mit KI-Suchvorschlägen](static/img/detailkarte%20mit%20ai%20such%20vorschl%C3%A4gen.png)
+
+**Detailkarte mit KI-Suchergebnissen und Auswahlvorschau**
+
+![Detailkarte mit KI-Suchergebnissen und Auswahlvorschau](static/img/detailkarte%20mit%20ai%20suchergebnissen%20und%20auswahlvorschau.png)
+
+**Auswahlvorschau Detail zum Hinzufügen**
+
+![Auswahlvorschau Detail zum Hinzufügen](static/img/auswahl%20vorschau%20detail%20zum%20hinzuf%C3%BCgen%20.png)
+
+**Detailkarte mit KI-Suche und Kommentarfunktion**
+
+![Detailkarte mit KI-Suche und Kommentarfunktion](static/img/detailkarte%20mit%20ai%20suche%20und%20commentarfunktion.png) 
